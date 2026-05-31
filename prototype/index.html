@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Agent SpendGuard Prototype</title>
+    <link rel="stylesheet" href="./styles.css">
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="topbar" aria-label="SpendGuard dashboard header">
+        <div>
+          <p class="eyebrow">Agent SpendGuard</p>
+          <h1>Scoped onchain budget for one AI agent</h1>
+        </div>
+        <div class="status-cluster" aria-label="Current state summary">
+          <span class="state-pill" data-state-pill="wallet">Wallet: disconnected</span>
+          <span class="state-pill" data-state-pill="policy">Policy: draft</span>
+          <span class="state-pill" data-state-pill="permission">Permission: not_requested</span>
+        </div>
+      </header>
+
+      <section class="demo-command" aria-label="Demo controls">
+        <div class="command-copy">
+          <h2>Demo runbook</h2>
+          <p id="demoNarrative">Connect MetaMask to begin the bounded agent budget flow.</p>
+        </div>
+        <div class="button-row">
+          <button id="connectBtn" type="button">Connect MetaMask</button>
+          <button id="approveBtn" type="button">Approve Permission</button>
+          <button id="runBtn" type="button">Run Agent</button>
+          <button id="overBudgetBtn" type="button">Try Over Budget</button>
+          <button id="revokeBtn" type="button" class="danger">Revoke</button>
+          <button id="resetBtn" type="button" class="ghost">Reset</button>
+        </div>
+      </section>
+
+      <section class="dashboard-grid" aria-label="SpendGuard dashboard">
+        <article class="panel wallet-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Wallet</p>
+              <h2>MetaMask Smart Account</h2>
+            </div>
+            <span class="badge" data-badge="wallet">Disconnected</span>
+          </div>
+          <dl class="detail-list">
+            <div>
+              <dt>EOA</dt>
+              <dd id="walletAddress">Not connected</dd>
+            </div>
+            <div>
+              <dt>Smart account</dt>
+              <dd id="smartAccount">Pending connection</dd>
+            </div>
+            <div>
+              <dt>Network</dt>
+              <dd id="networkName">Base Sepolia demo</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="panel policy-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Budget policy</p>
+              <h2>Venice risk brief agent</h2>
+            </div>
+            <span class="badge" data-badge="policy">Draft</span>
+          </div>
+          <div class="meter" aria-label="Budget remaining">
+            <div class="meter-top">
+              <span id="budgetUsed">$0.00 spent</span>
+              <span id="budgetRemaining">$1.00 left</span>
+            </div>
+            <div class="meter-track">
+              <span id="budgetBar" class="meter-fill"></span>
+            </div>
+          </div>
+          <dl class="detail-list two-col">
+            <div>
+              <dt>Max spend</dt>
+              <dd>1.00 USDC</dd>
+            </div>
+            <div>
+              <dt>Price per call</dt>
+              <dd>0.75 USDC</dd>
+            </div>
+            <div>
+              <dt>Window</dt>
+              <dd>24 hours</dd>
+            </div>
+            <div>
+              <dt>Scope</dt>
+              <dd>Venice AI only</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="panel permission-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Permission preview</p>
+              <h2>Readable before signing</h2>
+            </div>
+            <span class="badge" data-badge="permission">Not requested</span>
+          </div>
+          <div class="permission-copy">
+            <p>
+              You are authorizing the SpendGuard agent to spend up to
+              <strong>1.00 USDC</strong> during the next <strong>24 hours</strong>.
+            </p>
+            <p>
+              The permission can only be redeemed for the Venice AI risk brief
+              task and can be revoked at any time.
+            </p>
+          </div>
+          <ul class="check-list" aria-label="Permission boundaries">
+            <li data-check="wallet">Uses smart account permission, not a private key.</li>
+            <li data-check="scope">Allows one service: Venice AI protected endpoint.</li>
+            <li data-check="budget">Blocks payment when remaining budget is too low.</li>
+            <li data-check="revoke">Revocation closes the policy and future spends.</li>
+          </ul>
+        </article>
+
+        <article class="panel agent-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Agent runner</p>
+              <h2>Venice task</h2>
+            </div>
+            <span class="badge" data-badge="agentAction">Idle</span>
+          </div>
+          <div class="agent-task">
+            <p class="task-title">Generate a wallet risk brief</p>
+            <p>
+              Agent prechecks policy, receives an x402 payment requirement,
+              pays through the scoped permission, then returns a Venice result.
+            </p>
+          </div>
+          <dl class="detail-list">
+            <div>
+              <dt>Precheck</dt>
+              <dd id="precheckState">Waiting for active policy</dd>
+            </div>
+            <div>
+              <dt>Next action</dt>
+              <dd id="nextAction">Connect wallet</dd>
+            </div>
+          </dl>
+        </article>
+
+        <article class="panel status-rail">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">x402 payment</p>
+              <h2>Status rail</h2>
+            </div>
+            <span class="badge" data-badge="payment">None</span>
+          </div>
+          <ol class="rail-list" aria-label="Payment state rail">
+            <li data-rail="none">
+              <span>none</span>
+              <p>No paid request has started.</p>
+            </li>
+            <li data-rail="required_402">
+              <span>required_402</span>
+              <p>Protected endpoint asks for payment.</p>
+            </li>
+            <li data-rail="paying">
+              <span>paying</span>
+              <p>Permission redemption is being prepared.</p>
+            </li>
+            <li data-rail="paid">
+              <span>paid</span>
+              <p>Spend accepted inside policy limits.</p>
+            </li>
+            <li data-rail="blocked">
+              <span>blocked</span>
+              <p>Payment stopped before overspend.</p>
+            </li>
+          </ol>
+        </article>
+
+        <article class="panel relayer-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">1Shot relayer</p>
+              <h2>Execution timeline</h2>
+            </div>
+            <span class="badge" data-badge="relayer">Not used</span>
+          </div>
+          <ol class="timeline" aria-label="1Shot relayer timeline">
+            <li data-relayer="quote_requested">
+              <span></span>
+              <div>
+                <strong>Quote requested</strong>
+                <p id="quoteText">Waiting for agent payment.</p>
+              </div>
+            </li>
+            <li data-relayer="quoted">
+              <span></span>
+              <div>
+                <strong>Fee quoted</strong>
+                <p id="feeText">No quote yet.</p>
+              </div>
+            </li>
+            <li data-relayer="submitted">
+              <span></span>
+              <div>
+                <strong>Task submitted</strong>
+                <p id="taskText">No task id yet.</p>
+              </div>
+            </li>
+            <li data-relayer="confirmed">
+              <span></span>
+              <div>
+                <strong>Confirmed</strong>
+                <p id="txText">No relay transaction yet.</p>
+              </div>
+            </li>
+          </ol>
+        </article>
+
+        <article class="panel result-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Venice result</p>
+              <h2>Returned report</h2>
+            </div>
+            <span class="badge" data-badge="result">Waiting</span>
+          </div>
+          <div id="veniceResult" class="result-card">
+            <p class="empty-text">Run the agent after permission approval to show the paid AI output.</p>
+          </div>
+        </article>
+
+        <article class="panel ledger-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Spend ledger</p>
+              <h2>Observable agent spend</h2>
+            </div>
+            <span class="badge" data-badge="ledger">Empty</span>
+          </div>
+          <div class="ledger-table" role="table" aria-label="Spend ledger">
+            <div class="ledger-row ledger-head" role="row">
+              <span role="columnheader">Time</span>
+              <span role="columnheader">Service</span>
+              <span role="columnheader">Cost</span>
+              <span role="columnheader">Status</span>
+            </div>
+            <div id="ledgerRows"></div>
+          </div>
+        </article>
+
+        <article class="panel safety-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Safety proof</p>
+              <h2>Blocked and revoked states</h2>
+            </div>
+            <span class="badge" data-badge="revocation">Available</span>
+          </div>
+          <div class="safety-grid">
+            <div>
+              <p class="mini-label">Over-budget block</p>
+              <strong id="blockState">Not attempted</strong>
+              <span id="blockReason">Second paid action has not been requested.</span>
+            </div>
+            <div>
+              <p class="mini-label">Revocation</p>
+              <strong id="revokeState">Available</strong>
+              <span id="revokeReason">Active permission can be revoked by the user.</span>
+            </div>
+          </div>
+        </article>
+
+        <article class="panel contract-panel">
+          <div class="panel-header">
+            <div>
+              <p class="eyebrow">Frontend state contract</p>
+              <h2>Visible mock store</h2>
+            </div>
+            <span class="badge">Live</span>
+          </div>
+          <pre id="stateJson" aria-label="Current frontend state"></pre>
+        </article>
+      </section>
+    </main>
+
+    <script src="./app.js"></script>
+  </body>
+</html>
