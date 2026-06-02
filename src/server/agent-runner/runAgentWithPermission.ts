@@ -1,11 +1,16 @@
 import { spendguardConfig } from "@/server/config/spendguard";
-import { appendLedgerEntry } from "@/server/ledger/store";
+import {
+  appendLedgerEntry,
+  findSettledLedgerEntry,
+  listLedgerEntries
+} from "@/server/ledger/store";
 import {
   getPermissionRecord,
   markPermissionRevoked,
   updatePermissionSpend
 } from "@/server/permissions/store";
 import type {
+  AgentSpendDecision,
   AiRiskBrief,
   AdvancedPermissionGrant,
   LedgerEntry,
@@ -13,6 +18,13 @@ import type {
   PermissionRecord,
   RunnerSpendResult
 } from "@/shared/types";
+import {
+  agentDecisionAllowsPayment,
+  applyAgentDecisionPolicyCheck,
+  buildAgentSpendDecisionInput,
+  type AgentSpendDecisionInput
+} from "./agentSpendDecision";
+import { setCurrentAgentSpendDecision } from "./agentSpendDecisionStore";
 import {
   adapterNotConfigured,
   AgentRunnerError,
@@ -56,6 +68,7 @@ export type RunAiRiskBriefInput = {
 export type RunVeniceInput = RunAiRiskBriefInput;
 
 export type AgentRunnerAdapters = {
+  decideAgentSpend(input: AgentSpendDecisionInput): Promise<AgentSpendDecision>;
   getRequirement(input: GetRequirementInput): Promise<RunnerPaymentRequirement>;
   payRequirement(input: PayRequirementInput): Promise<PaymentReceipt>;
   runAiRiskBrief(input: RunAiRiskBriefInput): Promise<AiRiskBrief>;
@@ -66,6 +79,9 @@ export type AgentRunnerAdapterOverrides = Partial<AgentRunnerAdapters> & {
 };
 
 export const defaultAgentRunnerAdapters: AgentRunnerAdapters = {
+  async decideAgentSpend() {
+    throw adapterNotConfigured("decideAgentSpend");
+  },
   async getRequirement() {
     throw adapterNotConfigured("getRequirement");
   },
@@ -89,6 +105,9 @@ function resolveAdapters(
   adapterOverrides: AgentRunnerAdapterOverrides = {}
 ): AgentRunnerAdapters {
   return {
+    decideAgentSpend:
+      adapterOverrides.decideAgentSpend ??
+      defaultAgentRunnerAdapters.decideAgentSpend,
     getRequirement:
       adapterOverrides.getRequirement ?? defaultAgentRunnerAdapters.getRequirement,
     payRequirement:
@@ -116,8 +135,10 @@ function createResult({
   paymentReceipt = null,
   paymentRequirement = null,
   permission,
-  veniceRiskBrief = null
+  veniceRiskBrief = null,
+  agentDecision = null
 }: {
+  agentDecision?: AgentSpendDecision | null;
   blockedReason?: string | null;
   ledgerEntry?: LedgerEntry | null;
   paymentReceipt?: PaymentReceipt | null;
@@ -131,17 +152,20 @@ function createResult({
     paymentReceipt,
     paymentRequirement,
     permission,
-    veniceRiskBrief
+    veniceRiskBrief,
+    agentDecision
   };
 }
 
 function appendBlockedLedger({
+  agentDecision = null,
   error,
   input,
   paymentReceipt = null,
   paymentRequirement = null,
   permission
 }: {
+  agentDecision?: AgentSpendDecision | null;
   error: unknown;
   input: RunAgentWithPermissionInput;
   paymentReceipt?: PaymentReceipt | null;
@@ -151,7 +175,10 @@ function appendBlockedLedger({
   const reason = formatRunnerError(error);
   const ledgerEntry = appendLedgerEntry({
     amountAtomic:
-      paymentRequirement?.amountAtomic ?? permission.pricePerCallAtomic,
+      agentDecision?.estimatedCostAtomic ??
+      paymentRequirement?.amountAtomic ??
+      permission.pricePerCallAtomic,
+    agentDecision,
     endpoint: paymentRequirement?.endpoint ?? permission.allowedEndpoint,
     paymentReceipt,
     paymentRequirement,
@@ -170,7 +197,8 @@ function appendBlockedLedger({
     ledgerEntry,
     paymentReceipt,
     paymentRequirement,
-    permission
+    permission,
+    agentDecision
   });
 }
 
@@ -232,6 +260,7 @@ function normalizeAiFailure(error: unknown): AgentRunnerError {
 }
 
 function appendPaidAiFailedLedger({
+  agentDecision,
   error,
   input,
   paymentReceipt,
@@ -243,9 +272,38 @@ function appendPaidAiFailedLedger({
   paymentReceipt: PaymentReceipt;
   paymentRequirement: RunnerPaymentRequirement;
   permission: PermissionRecord;
+  agentDecision: AgentSpendDecision | null;
 }): RunnerSpendResult {
   const reason = formatRunnerError(error);
   const spentAt = paymentReceipt.paidAt || nowIso();
+  const duplicateLedgerEntry = findSettledLedgerEntry({
+    amountAtomic: paymentReceipt.amountAtomic,
+    agentDecision,
+    endpoint: paymentRequirement.endpoint,
+    occurredAt: spentAt,
+    paymentReceipt,
+    paymentRequirement,
+    permissionId: permission.id,
+    policyId: input.policyId,
+    reason,
+    service: permission.service,
+    serviceId: permission.serviceId,
+    status: "paid_ai_failed",
+    token: paymentReceipt.token,
+    tokenDecimals: paymentRequirement.tokenDecimals
+  });
+
+  if (duplicateLedgerEntry) {
+    return createResult({
+      blockedReason: reason,
+      ledgerEntry: duplicateLedgerEntry,
+      paymentReceipt,
+      paymentRequirement,
+      permission,
+      agentDecision
+    });
+  }
+
   const updatedPermission = updatePermissionSpend({
     amountAtomic: paymentReceipt.amountAtomic,
     permissionId: permission.id,
@@ -253,6 +311,7 @@ function appendPaidAiFailedLedger({
   });
   const ledgerEntry = appendLedgerEntry({
     amountAtomic: paymentReceipt.amountAtomic,
+    agentDecision,
     endpoint: paymentRequirement.endpoint,
     occurredAt: spentAt,
     paymentReceipt,
@@ -272,11 +331,13 @@ function appendPaidAiFailedLedger({
     ledgerEntry,
     paymentReceipt,
     paymentRequirement,
-    permission: updatedPermission
+    permission: updatedPermission,
+    agentDecision
   });
 }
 
 function appendSuccessLedger({
+  agentDecision,
   input,
   paymentReceipt,
   paymentRequirement,
@@ -288,8 +349,37 @@ function appendSuccessLedger({
   paymentRequirement: RunnerPaymentRequirement;
   permission: PermissionRecord;
   veniceRiskBrief: AiRiskBrief;
+  agentDecision: AgentSpendDecision | null;
 }): RunnerSpendResult {
   const spentAt = paymentReceipt.paidAt || nowIso();
+  const duplicateLedgerEntry = findSettledLedgerEntry({
+    amountAtomic: paymentReceipt.amountAtomic,
+    agentDecision,
+    endpoint: paymentRequirement.endpoint,
+    occurredAt: spentAt,
+    paymentReceipt,
+    paymentRequirement,
+    permissionId: permission.id,
+    policyId: input.policyId,
+    service: permission.service,
+    serviceId: permission.serviceId,
+    status: "success",
+    token: paymentReceipt.token,
+    tokenDecimals: paymentRequirement.tokenDecimals,
+    veniceRiskBrief
+  });
+
+  if (duplicateLedgerEntry) {
+    return createResult({
+      ledgerEntry: duplicateLedgerEntry,
+      paymentReceipt,
+      paymentRequirement,
+      permission,
+      veniceRiskBrief,
+      agentDecision
+    });
+  }
+
   const updatedPermission = updatePermissionSpend({
     amountAtomic: paymentReceipt.amountAtomic,
     permissionId: permission.id,
@@ -297,6 +387,7 @@ function appendSuccessLedger({
   });
   const ledgerEntry = appendLedgerEntry({
     amountAtomic: paymentReceipt.amountAtomic,
+    agentDecision,
     endpoint: paymentRequirement.endpoint,
     occurredAt: spentAt,
     paymentReceipt,
@@ -316,8 +407,29 @@ function appendSuccessLedger({
     paymentReceipt,
     paymentRequirement,
     permission: updatedPermission,
-    veniceRiskBrief
+    veniceRiskBrief,
+    agentDecision
   });
+}
+
+function blockedAgentDecisionError(
+  agentDecision: AgentSpendDecision
+): AgentRunnerError {
+  const code =
+    agentDecision.decision === "skip"
+      ? "AGENT_DECISION_SKIPPED"
+      : "AGENT_DECISION_BLOCKED";
+
+  return new AgentRunnerError(
+    code,
+    `Agent decision=${agentDecision.decision}: ${agentDecision.reason}`,
+    {
+      blocked: true,
+      details: {
+        agentDecision
+      }
+    }
+  );
 }
 
 async function executeRun(
@@ -325,6 +437,7 @@ async function executeRun(
   adapters: AgentRunnerAdapters
 ): Promise<RunnerSpendResult> {
   const permission = readPermissionOrThrow(input);
+  let agentDecision: AgentSpendDecision | null = null;
   let paymentRequirement: RunnerPaymentRequirement | null = null;
   let paymentReceipt: PaymentReceipt | null = null;
 
@@ -343,19 +456,56 @@ async function executeRun(
   inFlightPolicyIds.add(input.policyId);
 
   try {
+    const decisionInput = buildAgentSpendDecisionInput({
+      action: input.action,
+      amountAtomic: permission.pricePerCallAtomic,
+      permission,
+      policyId: input.policyId,
+      recentLedgerEntries: listLedgerEntries()
+    });
+
+    agentDecision = await adapters.decideAgentSpend(decisionInput);
+    setCurrentAgentSpendDecision(agentDecision);
+
+    if (agentDecision.decision !== "spend") {
+      agentDecision = applyAgentDecisionPolicyCheck(agentDecision, "denied");
+      setCurrentAgentSpendDecision(agentDecision);
+
+      return appendBlockedLedger({
+        agentDecision,
+        error: blockedAgentDecisionError(agentDecision),
+        input,
+        permission
+      });
+    }
+
     try {
       precheckPolicyGuard({
         action: input.action,
-        amountAtomic: permission.pricePerCallAtomic,
+        amountAtomic: agentDecision.estimatedCostAtomic,
         permissionRecord: permission,
         policyId: input.policyId
       });
+      agentDecision = applyAgentDecisionPolicyCheck(agentDecision, "allowed");
+      setCurrentAgentSpendDecision(agentDecision);
     } catch (error) {
+      agentDecision = applyAgentDecisionPolicyCheck(agentDecision, "denied");
+      setCurrentAgentSpendDecision(agentDecision);
+
       if (isAgentRunnerError(error) && error.blocked) {
-        return appendBlockedLedger({ error, input, permission });
+        return appendBlockedLedger({ agentDecision, error, input, permission });
       }
 
       throw error;
+    }
+
+    if (!agentDecisionAllowsPayment(agentDecision)) {
+      return appendBlockedLedger({
+        agentDecision,
+        error: blockedAgentDecisionError(agentDecision),
+        input,
+        permission
+      });
     }
 
     paymentRequirement = await adapters.getRequirement({
@@ -374,6 +524,7 @@ async function executeRun(
     } catch (error) {
       if (isAgentRunnerError(error) && error.blocked) {
         return appendBlockedLedger({
+          agentDecision,
           error,
           input,
           paymentRequirement,
@@ -399,6 +550,7 @@ async function executeRun(
       }
 
       return appendBlockedLedger({
+        agentDecision,
         error: paymentError,
         input,
         paymentRequirement,
@@ -408,6 +560,7 @@ async function executeRun(
 
     if (!isPaidReceipt(paymentReceipt)) {
       return appendBlockedLedger({
+        agentDecision,
         error: new AgentRunnerError(
           "PAYMENT_FAILED",
           "Payment was not confirmed",
@@ -435,6 +588,7 @@ async function executeRun(
       });
 
       return appendSuccessLedger({
+        agentDecision,
         input,
         paymentReceipt,
         paymentRequirement,
@@ -443,6 +597,7 @@ async function executeRun(
       });
     } catch (error) {
       return appendPaidAiFailedLedger({
+        agentDecision,
         error: normalizeAiFailure(error),
         input,
         paymentReceipt,

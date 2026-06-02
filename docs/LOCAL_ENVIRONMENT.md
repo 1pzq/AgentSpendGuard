@@ -1,6 +1,6 @@
 # Local Environment Configuration
 
-Last updated: 2026-05-31
+Last updated: 2026-06-02
 
 ## Purpose
 
@@ -49,8 +49,14 @@ VENICE_API_BASE=https://api.venice.ai/api/v1
 VENICE_MODEL=
 
 ONESHOT_MODE=mock
+ONESHOT_REAL_CALLS_ENABLED=false
 ONESHOT_BASE_URL=
+ONESHOT_FEE_COLLECTOR=0xE936e8FAf4A5655469182A49a505055B71C17604
+ONESHOT_TARGET_ADDRESS=0xf1ef956eff4181Ce913b664713515996858B9Ca9
+ONESHOT_STATUS_MAX_POLLS=12
+ONESHOT_STATUS_POLL_MS=2500
 ONESHOT_API_KEY=
+ONESHOT_API_SECRET=
 ONESHOT_WEBHOOK_SECRET=
 
 NEXT_PUBLIC_APP_URL=http://localhost:3000
@@ -86,8 +92,16 @@ Replace `YOUR_INFURA_PROJECT_ID` in `.env.local` only.
 | `DEEPSEEK_MODEL` | DeepSeek model for risk briefs. | real config |
 | `VENICE_MODE` | Legacy Venice adapter mode. | `mock` |
 | `VENICE_API_KEY` | Legacy Venice API key. | unused while DeepSeek is selected |
-| `ONESHOT_MODE` | 1Shot adapter mode. | `mock` |
-| `ONESHOT_API_KEY` | 1Shot API key. | empty until key creation works |
+| `ONESHOT_MODE` | 1Shot adapter mode. Default stays `mock`; mock mode does not require an API key. | `mock` |
+| `ONESHOT_REAL_CALLS_ENABLED` | Second guard for real 1Shot calls. A real adapter must refuse unless this is `true` and `ONESHOT_MODE=real`. | `false` |
+| `ONESHOT_BASE_URL` | Server-side 1Shot API base URL for future real adapter work. Empty in mock mode. | real config only |
+| `ONESHOT_FEE_COLLECTOR` | Base Sepolia fee collector returned by the single approved 1Shot capabilities smoke. Used as documented local config, not fetched on app startup. | real config only |
+| `ONESHOT_TARGET_ADDRESS` | Base Sepolia 1Shot relayer target/redeemer address returned by the single approved capabilities smoke. In `ONESHOT_MODE=real`, this becomes the ERC-7710 redeemer constraint unless `X402_ERC7710_FACILITATOR_ADDRESSES` is explicitly set. | real config only |
+| `ONESHOT_STATUS_MAX_POLLS` | Maximum bounded status checks after `relayer_send7710Transaction` in a real 1Shot settlement. | real config only |
+| `ONESHOT_STATUS_POLL_MS` | Delay between bounded 1Shot status checks. | real config only |
+| `ONESHOT_API_KEY` | 1Shot Dev Platform API key. Created successfully; keep it only in `.env.local` and never expose it in docs, chat, or browser code. Public Relayer may not require it. | local secret only |
+| `ONESHOT_API_SECRET` | 1Shot Dev Platform API secret. Keep it only in `.env.local`; rotate it after demos if it was exposed during setup. Public Relayer may not require it. | local secret only |
+| `ONESHOT_WEBHOOK_SECRET` | Optional server-side 1Shot webhook secret for future callback verification. Empty in mock mode. | local secret only |
 
 ## Security Notes
 
@@ -113,3 +127,20 @@ X402_PAY_TO
 ```
 
 No private key is required for browser MetaMask connect.
+
+## P7 Non-Interactive Verification
+
+Use the workspace bundled Node when running repeatable validation inside Codex:
+
+```bash
+/Users/puzhiqiu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/p7-verify.mjs
+```
+
+The script runs typecheck, Next build, caveat assertion smoke,
+`git diff --check`, an isolated `next start` server, a local x402 `/supported`
+facilitator stub, SSR page smoke, and Step 7 failure smoke.
+
+It sets a temporary `SPENDGUARD_DATA_DIR`, so it does not reset the normal
+`.spendguard` demo evidence or the user's live `http://127.0.0.1:3012` state.
+It also avoids MetaMask clicks, real paid calls, DeepSeek calls, 1Shot real
+calls, and settlement.

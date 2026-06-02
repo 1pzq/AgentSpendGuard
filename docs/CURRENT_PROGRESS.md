@@ -1,11 +1,28 @@
 # Agent SpendGuard Current Progress
 
-Last updated: 2026-05-31
+Last updated: 2026-06-02
 
 ## Current Snapshot
 
 The project is currently a local Next.js demo for bounded AI-agent spending on
-Base Sepolia.
+Base Sepolia. The active prize strategy is now focused on the main track:
+
+```text
+Best x402 + ERC-7710
+```
+
+Optimization plan:
+
+```text
+docs/X402_ERC7710_TRACK_OPTIMIZATION_PLAN.md
+docs/X402_ERC7710_TRACK_OPTIMIZATION_PLAN_CN.md
+```
+
+Optimization focus:
+
+```text
+docs/X402_ERC7710_OPTIMIZATION_FOCUS.md
+```
 
 Working now:
 
@@ -16,23 +33,90 @@ Working now:
   before allowing the agent run path.
 - Main `Run Agent` payment flow uses the stored MetaMask Advanced Permission
   grant to build and settle an ERC-7710 x402 payment.
-- The older paid x402 EOA typed-data client remains as legacy code but is no
-  longer the Dashboard default path.
-- Real DeepSeek adapter path after x402 payment succeeds.
+- Feature-flagged paid ERC-7710 x402 endpoint and Dashboard control for a real
+  Base Sepolia testnet spend.
+- Real 1Shot relay settlement is wired as supporting infrastructure for the
+  ERC-7710 paid x402 path.
+- A real Base Sepolia paid run has confirmed through 1Shot and produced tx:
+
+  ```text
+  0xf669edc46cd69491719937a6b8f416a88fc0a0d0f70f99f216c05c8b82bc2577
+  ```
+
+- A later user-run clean E2E pass also confirmed through 1Shot with tx:
+
+  ```text
+  0xd864924d7f92e498f51d5a0065c4d1a29ae6629087f5e9602177f0c8590c3a4d
+  ```
+
+- P5 is live-validated: the user ran three paid ERC-7710 x402 calls from the
+  same MetaMask Advanced Permission grant on `http://127.0.0.1:3012`, producing
+  three independent Base Sepolia txs:
+
+  ```text
+  call #1: 0x62e550bd889a8eeb72b72633371bd4be8118cd6026ad330ffeb0957d18b0aec0
+  call #2: 0x9398cc02b95761f07c890a9a6346318e78ef4649c1c971659b92f4e1f9d1bd4e
+  call #3: 0xa065cfa4d2e09048ae4015e2f4a779c26de05cccae4a14af65c8356d174f65d3
+  ```
+
+- The 1Shot status parser now treats numeric `status: 200` with
+  `receipt.transactionHash` as confirmed.
+- `/api/ledger` currently reports 4 rows: 3 successful paid calls, 1 blocked
+  over-budget precheck row, `spent=0.03`, and `remainingBudget=0.97 USDC`.
+- Dashboard x402 evidence rail now shows the protected resource, selected
+  requirement, `scheme=exact`, `assetTransferMethod=erc7710`, amount, network,
+  asset, payTo, paid-header state, and tx hash/block-before-payment state.
+- P6 seller transparency is implemented in the UI: the payment rail labels
+  `Agent SpendGuard paid risk-brief API` as the x402 seller, shows the actual
+  `/api/x402/deepseek/risk-brief/erc7710-paid-poc` seller route, keeps the
+  x402 resource path visible, and states that DeepSeek is the downstream AI
+  provider after settlement rather than the x402 seller.
+- Dashboard ERC-7710 proof rail now shows the MetaMask Advanced Permission
+  grant type, delegator / payer, session account / redeemer, delegation
+  manager, parent permission context hash, generated payload context hash,
+  child delegation target, and local/server validation status without exposing
+  raw permission context.
+- P1 caveat hardening is implemented and live-validated for the paid path: each 1Shot-scoped
+  child delegation now includes an `erc20TransferAmount` caveat with
+  `maxAmount = x402 service price + 1Shot relay fee budget`. The local payload
+  proof decodes the child caveat and asserts its token and max amount before
+  submitting the paid request.
+- Dashboard Step 5 multi-run flow now keeps the stored Advanced Permission
+  grant reusable after a paid call, shows `Approvals=1`, paid call count, next
+  call number, and remaining budget, and labels repeat runs as `Run Call #N`.
+- Spend ledger rows now preserve per-call proof: call number, amount, remaining
+  budget after the row, ERC-7710 payload context hash, child delegation target,
+  and tx hash. Oversized blocked rows explicitly show `No paid header`.
+- Dashboard Step 6 accounting now separates the x402 service price, known
+  1Shot relay fee, total wallet debit, agent budget consumed, and remaining
+  budget. The policy card states that the demo spend cap counts x402 service
+  price only while relay fee is shown separately as wallet debit.
+- The paid ERC-7710 route now rejects a reused payload context hash before
+  continuing, so each successful repeat paid call must be backed by a fresh
+  child delegation / payment payload.
+- Ledger writes now dedupe settled success records by tx hash, requirement id,
+  or ERC-7710 payload context hash to avoid accidental duplicate rows for the
+  same settled payment.
+- Real DeepSeek adapter path runs after x402 payment succeeds.
 - Local demo ledger / permission persistence.
 - Dry-run ERC-7710 x402 PoC that builds a delegation payment preview from the
   stored MetaMask grant without submitting payment.
 - Dry-run route safety guard that rejects payment headers before any
   verification, settlement, ledger write, or paid AI handler can run.
-- Feature-flagged paid ERC-7710 x402 endpoint and Dashboard control for a real
-  Base Sepolia testnet spend.
+- Step 7 failure smoke script now covers missing ERC-7710 payment payload,
+  dry-run payment-header rejection, oversized precheck blocking, 1Shot
+  `status=200` normalization, and settled-payment duplicate identity matching.
 - Revoke button now attempts the ERC-7715 direct wallet revoke RPC
   `wallet_revokeExecutionPermission` when available, then verifies wallet truth
   with `wallet_getGrantedExecutionPermissions` before closing local policy.
+- The older paid x402 EOA typed-data client remains as legacy code but is no
+  longer the Dashboard default path.
 
 Still not done:
 
-- 1Shot relayer integration is not implemented in the payment path.
+- Settlement failure is fail-closed by route structure, but this pass did not
+  build a valid ERC-7710 payload fixture that intentionally fails only during
+  settlement.
 - Direct revoke support still depends on the user's MetaMask build. If the
   wallet does not support `wallet_revokeExecutionPermission`, the app falls
   back to explicit manual MetaMask revoke plus wallet-truth sync.
@@ -45,18 +129,368 @@ Still not done:
 Agent SpendGuard is being built as a hackathon MVP for bounded, observable, and
 revocable AI-agent spending onchain.
 
-The current implementation goal is to keep the existing paid EOA x402 path and
-the no-spend ERC-7710 dry run working while validating the feature-flagged real
-ERC-7710 x402 paid PoC.
+The current implementation goal is no longer to expand side integrations. The
+goal is to make the `Best x402 + ERC-7710` track evidence exceptionally clear
+and repeatable:
 
-Current status: the no-spend ERC-7710 dry-run PoC is implemented and locally
-verified. The paid PoC is implemented behind `ERC7710_PAID_POC_ENABLED`, but
-the latest real payment attempt did not settle. After the account was converted
-to a MetaMask smart account / EIP-7702 account, `grant.from` has executable code
-on Base Sepolia. The local RedeemerEnforcer guard now decodes the generated
-permission context into delegations/caveats instead of searching raw hex, so the
-next real paid retry should no longer fail on the false missing-facilitator
-message shown in the browser.
+```text
+MetaMask Advanced Permissions
+-> ERC-7710 delegation payment payload
+-> x402 402 challenge
+-> paid x402 request
+-> policy-guarded settlement
+-> confirmed tx and ledger proof
+```
+
+Current status: the no-spend ERC-7710 dry-run PoC, the real paid ERC-7710 x402
+path, x402 evidence rail, ERC-7710 proof rail, Step 5 multi-run Advanced
+Permission reuse UX, Step 6 budget accounting clarity, Step 7 fail-closed smoke
+coverage, P1 child delegation amount caveat hardening, P2 Caveat Inspector UI,
+P3 server caveat assertion, P4 onchain available-amount display, P5
+multi-transaction evidence, P6 x402 seller transparency, and P7 repeatable
+validation command stabilization are implemented.
+Real Base Sepolia transactions have confirmed through the current
+1Shot-supported settlement path, including three independent P5 paid calls from
+the same Advanced Permission grant. Next work should proceed to P8 final
+submission packaging.
+
+Out of scope for the current optimization phase:
+
+```text
+- optimizing for the 1Shot specialty prize
+- Venice as a main judging claim
+- A2A coordination
+- production-grade one-click revoke
+```
+
+## Step 5 Validation
+
+Implemented in this pass:
+
+- Repeat paid run UI remains available after the first paid call as long as the
+  stored Advanced Permission grant is still active and budget remains.
+- Dashboard runbook shows one approval, paid call count, next paid call number,
+  and remaining budget.
+- Ledger rows show `Call #1`, `Call #2`, distinct ERC-7710 payload hashes, tx
+  hashes, and remaining budget after each row.
+- Oversized requests are represented as `blocked` with `No paid header`, while
+  policy remains `active` if budget remains.
+- Server rejects a reused ERC-7710 payload context hash before continuing the
+  paid route.
+
+Validation completed:
+
+```text
+tsc --noEmit: passed
+next build: passed
+git diff --check: passed
+Browser fixture check: passed at 1280x900 and 390x844 with 0 detected text overflows
+```
+
+Notes:
+
+- Build/start can still report the existing `ox/tempo` dynamic dependency
+  warning from the viem chain import path, and Node may print its SQLite
+  experimental warning while `next start` serves API routes.
+- The browser fixture used local synthetic persisted state only; it did not
+  trigger MetaMask, DeepSeek, 1Shot, or a real settlement.
+- A later P5 user run replaced the fixture-only risk: call #1, #2, and #3
+  settled on Base Sepolia from the same stored Advanced Permission grant, with
+  distinct tx hashes and payload context hashes.
+
+## Step 6 Validation
+
+Implemented in this pass:
+
+- Added Dashboard-level accounting projection for:
+  - x402 service price
+  - 1Shot relay fee when known
+  - total wallet debit when known
+  - agent budget consumed
+  - remaining budget
+- Extended `paymentReceipt.oneShot` with structured `feeAtomic`,
+  `feeCollector`, and `totalWalletDebitAtomic` fields derived from 1Shot
+  settlement estimate metadata.
+- Policy card now states the demo boundary: the SpendGuard cap counts x402
+  service price, while relay fee is shown separately as wallet debit.
+- Relayer timeline displays the relay fee and total wallet debit alongside the
+  1Shot task state.
+- Ledger rows now show per-call accounting:
+  - service amount
+  - relay fee
+  - total wallet debit
+  - budget consumed
+- Blocked oversized rows continue to show no paid header and no wallet debit.
+
+Known successful tx accounting:
+
+```text
+service price: 10000 atomic USDC = 0.01 USDC
+1Shot relay fee: 10944 atomic USDC = 0.010944 USDC
+total wallet debit: 20944 atomic USDC = 0.020944 USDC
+agent budget consumed: 10000 atomic USDC = 0.01 USDC
+```
+
+Validation completed:
+
+```text
+./node_modules/.bin/tsc --noEmit: passed
+/Users/puzhiqiu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node ./node_modules/.bin/next build: passed
+git diff --check: passed
+Browser fixture check: passed at http://127.0.0.1:3013 with 0 unexpected text overflows
+```
+
+Notes:
+
+- Build still reports the existing `ox/tempo` dynamic dependency warning from
+  the viem chain import path.
+- The first `./node_modules/.bin/next build` attempt failed only because Codex
+  App's embedded Node process could not load the local Next SWC native binary
+  under macOS code-signing rules. Re-running with the workspace bundled Node
+  succeeded.
+- The Step 6 browser check used a local synthetic fixture to display two paid
+  calls plus one oversized blocked row. The fixture was reset afterward and did
+  not trigger MetaMask, DeepSeek, 1Shot, or a real settlement.
+
+## Step 7 Validation
+
+Implemented in this pass:
+
+- Extracted 1Shot status normalization into a focused helper:
+  `src/server/adapters/oneShotStatus.ts`.
+- Extracted settled-payment identity matching into a focused helper:
+  `src/server/ledger/settledPaymentIdentity.ts`.
+- Added `scripts/step7-failure-smoke.mjs`.
+- Added `scripts/p7-verify.mjs`.
+- Added `p7:verify`, `smoke:p3`, and `smoke:step7` to `package.json`.
+- The P7 verify script uses `process.execPath` for TypeScript and Next CLI
+  commands, so the entire run stays on the same Node runtime.
+- The P7 verify script starts an isolated local `next start` server, an isolated
+  `SPENDGUARD_DATA_DIR`, and a local x402 `/supported` facilitator stub for
+  the unpaid 402 challenge path.
+
+Smoke coverage:
+
+```text
+missing ERC-7710 payment payload -> HTTP 402 -> no success ledger
+dry-run endpoint with payment-signature header -> HTTP 400 -> no ledger spend
+oversized precheck -> blocked dashboard state -> no paid header / no relayer tx
+1Shot status=200 + receipt.transactionHash -> normalized as confirmed
+duplicate settled identity -> matches tx hash, requirement id, or payload hash
+```
+
+Command result:
+
+```text
+/Users/puzhiqiu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/p7-verify.mjs
+
+P7 verification passed
+```
+
+Validation completed:
+
+```text
+/Users/puzhiqiu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node ./node_modules/typescript/bin/tsc --noEmit: passed
+/Users/puzhiqiu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node ./node_modules/next/dist/bin/next build: passed
+/Users/puzhiqiu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/p3-caveat-assertion-smoke.mjs: passed
+git diff --check: passed
+isolated SSR page smoke: passed
+/Users/puzhiqiu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/step7-failure-smoke.mjs <isolated-localhost>: passed
+```
+
+Notes:
+
+- Build still reports the existing `ox/tempo` dynamic dependency warning from
+  the viem chain import path.
+- The isolated smoke runs against the built app through `next start`, not the
+  development server.
+- The smoke script resets only the temporary `SPENDGUARD_DATA_DIR` created by
+  `scripts/p7-verify.mjs`.
+- No real MetaMask, DeepSeek, 1Shot, or settlement call is triggered by the
+  P7 verify script.
+- Highest residual risk: settlement failure without success ledger is verified
+  by code structure (`onSettled` records only after successful settlement), but
+  not by a live malformed ERC-7710 payload fixture in this pass.
+
+## P1 Child Caveat Hardening Validation
+
+Implemented in this pass:
+
+- Added `erc20TransferAmount` to the paid-path child delegation generated in
+  `src/client/x402/payErc7710DeepseekRiskBrief.ts`.
+- The cap is computed from the 1Shot-scoped requirement:
+  `x402 service price + 1Shot relay fee budget`.
+- The relay fee budget now includes bounded 2x headroom over
+  `max(relayer_getFeeData.minFee, x402 service price)`, because 1Shot can return
+  a slightly higher `requiredPaymentAmount` during estimate. This keeps the
+  child delegation capped while avoiding false `ERC20TransferAmountEnforcer`
+  `allowance-exceeded` failures.
+- The child caveat is scoped to Base Sepolia USDC and sits alongside the
+  existing `limitedCalls`, `valueLte`, `allowedTargets`, `allowedMethods`, and
+  `timestamp` caveats.
+- Extended the ERC-7710 delegation inspector and payload proof to decode the
+  child `erc20TransferAmount` enforcer, token address, and max amount.
+- Added a client-side assertion before paid request submission: the generated
+  payload must include the child amount caveat, and its token / max amount must
+  match the scoped x402 payment.
+- The proof rail now exposes the decoded child amount cap as `子金额上限`.
+
+Validation completed:
+
+```text
+/Users/puzhiqiu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node ./node_modules/typescript/bin/tsc --noEmit: passed
+/Users/puzhiqiu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node ./node_modules/next/dist/bin/next build: passed
+git diff --check: passed
+Browser smoke at http://localhost:3013/: passed
+/Users/puzhiqiu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node scripts/step7-failure-smoke.mjs http://127.0.0.1:3013: passed
+```
+
+Notes:
+
+- Build still reports the existing `ox/tempo` dynamic dependency warning from
+  the viem chain import path.
+- The first Step 7 smoke attempt hit a transient Next dev-server cache / hot
+  reload 500 on `/api/ledger`; the endpoint immediately recovered, and the
+  rerun passed all 5 checks.
+- User-tested live paid call on 2026-06-01 confirmed that the new child amount
+  caveat remains compatible with 1Shot settlement:
+  - tx hash:
+    `0x69de2c1f16ac9e837d80669e0830e99d7811dc11052835b8ab270bf00e8eb587`
+  - payload context hash:
+    `0x9834278a5e92467ea2a41995eebac7e685961c02b4edc782c9b05b2b4a66b0c4`
+  - child `erc20TransferAmount.maxAmountAtomic`: `30000`
+  - 1Shot fee: `12042` atomic USDC
+  - total wallet debit: `22042` atomic USDC
+
+## P2 Caveat Inspector UI Validation
+
+Implemented in this pass:
+
+- Extended the ERC-7710 delegation inspector to decode the full paid-path child
+  caveat set into structured proof data:
+  `limitedCalls`, `valueLte`, `allowedTargets`, `allowedMethods`, `timestamp`,
+  and `erc20TransferAmount`.
+- Added an ordered raw caveat summary for the proof rail, while still keeping
+  the raw permission context hidden and represented by hash / byte count.
+- Extended `PermissionPreview` with a Caveat Inspector that shows:
+  - parent permission: token, period amount, period duration, start time,
+    expiry, delegator, redeemer, delegation manager
+  - child delegation: call limit, native value cap, allowed target, allowed
+    method selector, timestamp window, ERC-20 transfer amount cap
+- Preserved backward compatibility for the existing P1 paid proof in local
+  ledger state: it still shows `子金额上限`, while the missing full child caveat
+  set is labeled as historical proof. Newly generated paid payload proofs will
+  carry the complete `childCaveats` object.
+
+Validation completed:
+
+```text
+/Users/puzhiqiu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node ./node_modules/typescript/bin/tsc --noEmit: passed
+git diff --check: passed
+Browser smoke at http://localhost:3013/: passed
+```
+
+Browser smoke evidence:
+
+```text
+DOM contains: ERC-7710 证明, 父级授权限制, 本次 child delegation 限制, 周期额度, erc20TransferAmount
+Screenshot: .spendguard/screenshots/p2-caveat-inspector-panel.png
+```
+
+## P5 Multi-Transaction Evidence Validation
+
+Validated by user-run browser flow on `http://127.0.0.1:3012`.
+
+Successful paid calls:
+
+```text
+call #1:
+  txHash: 0x62e550bd889a8eeb72b72633371bd4be8118cd6026ad330ffeb0957d18b0aec0
+  payloadContextHash: 0xe35522e53e9cf3c72e0150fa298e9b9446c83b91343ad6ce79da1be957481d10
+  service price: 10000 atomic USDC
+  1Shot fee: 12042 atomic USDC
+  total wallet debit: 22042 atomic USDC
+  remaining after: 0.99 USDC
+
+call #2:
+  txHash: 0x9398cc02b95761f07c890a9a6346318e78ef4649c1c971659b92f4e1f9d1bd4e
+  payloadContextHash: 0xf4a42c3b50e45e9e74bb3afc7c6f6691f97f41018752da0a3115e6b02110dc5f
+  service price: 10000 atomic USDC
+  1Shot fee: 10626 atomic USDC
+  total wallet debit: 20626 atomic USDC
+  remaining after: 0.98 USDC
+
+call #3:
+  txHash: 0xa065cfa4d2e09048ae4015e2f4a779c26de05cccae4a14af65c8356d174f65d3
+  payloadContextHash: 0xe3f22f2014585830d985097d945f4a4416f732aed2999f7764fdac63554a2d8a
+  service price: 10000 atomic USDC
+  1Shot fee: 10626 atomic USDC
+  total wallet debit: 20626 atomic USDC
+  remaining after: 0.97 USDC
+```
+
+Read-only Base Sepolia receipt check:
+
+```text
+call #1: status=0x1, block=0x2852bdd, to=0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3
+call #2: status=0x1, block=0x2852c22, to=0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3
+call #3: status=0x1, block=0x2852c44, to=0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3
+```
+
+Over-budget proof:
+
+```text
+POST /api/agent/precheck
+body: {"amountAtomic":"1010000","recordBlockedOnly":true}
+
+latest ledger row: blocked
+reason: 支付金额超过单次价格上限
+txHash: null
+payloadContextHash: null
+budgetConsumed: 0.00 USDC
+totalWalletDebit: 无钱包扣款
+```
+
+Validation result:
+
+```text
+P5 PASS
+```
+
+## P6 x402 Seller Transparency
+
+Implemented in this pass:
+
+- Payment rail now includes a `Seller Boundary` evidence block.
+- The seller is named as `Agent SpendGuard paid risk-brief API`.
+- The actual seller route is visible as:
+
+  ```text
+  POST /api/x402/deepseek/risk-brief/erc7710-paid-poc
+  ```
+
+- The x402 resource path remains visible separately:
+
+  ```text
+  /x402/deepseek/risk-brief/erc7710-paid-poc
+  ```
+
+- The UI states that the seller endpoint signs the x402 boundary: it issues the
+  402 challenge, verifies the ERC-7710 payload, and releases the business
+  response after settlement.
+- The AI result panel now states that DeepSeek is the downstream provider after
+  settlement, not the x402 seller.
+- The judge report now includes an `x402 Seller boundary` section explaining
+  that the project does not claim DeepSeek-native x402 support and does not
+  treat a local mock as paid settlement.
+
+Validation completed:
+
+```text
+/Users/puzhiqiu/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin/node ./node_modules/typescript/bin/tsc --noEmit: passed
+git diff --check: passed
+Browser smoke at http://127.0.0.1:3012/: passed
+```
 
 ## Completed So Far
 
@@ -65,18 +499,21 @@ message shown in the browser.
 - Defined the core demo loop:
   1. Connect wallet.
   2. Approve a bounded agent budget policy.
-  3. Run one paid DeepSeek risk-brief action.
-  4. Show x402 payment state and 1Shot relay timeline.
-  5. Update spend ledger.
-  6. Block a second over-budget action.
-  7. Revoke permission.
+  3. Run paid DeepSeek risk-brief action #1.
+  4. Run paid DeepSeek risk-brief action #2 from the same stored grant.
+  5. Show x402 payment state and 1Shot relay timeline.
+  6. Update spend ledger.
+  7. Block an oversized request before paid-header submission.
+  8. Revoke permission.
 - Confirmed MVP boundary:
   - One user.
   - One agent.
   - One service: DeepSeek risk brief.
   - One token: Base Sepolia USDC.
   - One budget: 1.00 USDC / 24 hours.
-  - One fixed price: 0.75 USDC per call.
+  - Current ERC-7710 paid PoC price: 0.01 USDC per call.
+  - Older EOA x402 notes below may still mention the historical 0.75 USDC
+    flow; those are no longer the Dashboard default path.
 
 ### Static Prototype
 
@@ -339,6 +776,13 @@ Latest ERC-7710 paid PoC verification on 2026-05-31:
   request was submitted. `/api/ledger` remained empty with `spent=0` and no tx
   hash. Current UI behavior marks that canceled diagnostic run as
   `payment=failed` and `agentAction=failed`, even though no spend is submitted.
+- User-tested 1Shot relay on 2026-05-31: after targeting the child delegation to
+  the 1Shot target wallet and normalizing 1Shot hex fields, estimate progressed
+  to calldata validation and rejected the bundle because no payment to the
+  relayer fee collector was present. The 1Shot settlement request now adds a
+  second ERC-20 transfer execution to the relayer `feeCollector`, seeded from
+  `relayer_getFeeData.minFee` and replaced with
+  `relayer_estimate7710Transaction.requiredPaymentAmount` before send.
 
 ## Current Local Runtime Status
 
@@ -346,15 +790,21 @@ The app currently supports real MetaMask EOA connection on Base Sepolia, a real
 MetaMask Advanced Permission request path, a real x402 seller route, and a real
 DeepSeek-backed paid result path.
 
-The existing paid x402 path is still the EOA typed-data
-`TransferWithAuthorization` path. ERC-7710 now has both a no-spend dry-run path
-and a separate feature-flagged paid PoC path. The paid PoC can submit payment,
-but has not yet produced a successful facilitator settlement.
+The active Dashboard paid path is now the ERC-7710 x402 path backed by the
+stored MetaMask Advanced Permission grant. A real Base Sepolia run has confirmed
+through the current 1Shot-supported settlement path:
+
+```text
+0xf669edc46cd69491719937a6b8f416a88fc0a0d0f70f99f216c05c8b82bc2577
+```
+
+The old EOA typed-data `TransferWithAuthorization` path remains in the repo as
+legacy/reference code, but it is no longer the product path to optimize.
 
 It still does not use:
 
-- Real 1Shot quote/submit/status.
 - Production-grade wallet revoke or persistent storage.
+- Final submission-grade screenshots/video/scripts.
 
 ## Resume Protocol After Context Compression
 
@@ -374,8 +824,10 @@ Requirement precedence:
 Current baseline boundary:
 
 - ERC-7710 has a no-spend dry-run path and a separate feature-flagged paid PoC.
-  The paid PoC may spend `0.01 USDC` on Base Sepolia and must only be retried
-  after explicit user confirmation.
+  The paid PoC may spend `0.01 USDC` plus relay fee on Base Sepolia and must
+  only be retried after explicit user confirmation.
+- The current optimization target is Best x402 + ERC-7710. Treat 1Shot as
+  supporting settlement infrastructure, not the primary prize track.
 - Do not call `wallet_requestExecutionPermissions` unless the user explicitly
   asks to change the permission approval flow.
 - Do not call `eth_sendTransaction`.
@@ -1537,6 +1989,561 @@ Known boundary:
   It is for traditional provider permissions such as `eth_accounts`.
 - Manual MetaMask revoke plus app sync remains the honest fallback when direct
   revoke is unsupported by the wallet.
+
+Current acceptance decision:
+
+- The current MetaMask build used in local testing did not support
+  `wallet_revokeExecutionPermission`, so the app correctly kept the policy
+  active and refused to record a fake revoke.
+- The MVP revoke story is now manual wallet revoke in MetaMask Dapp
+  connections followed by app-side wallet-truth sync.
+- Dapp-triggered one-click wallet revoke is not being pursued further for this
+  hackathon MVP unless MetaMask support changes.
+
+## 1Shot Key Created
+
+The 1Shot API key has been created successfully in the 1Shot dashboard.
+
+Important boundary:
+
+- Do not paste the API key or secret into docs, chat, screenshots, or
+  browser-visible code.
+- Keep `ONESHOT_MODE=mock` until the integration layer is implemented and the
+  real-call guard is in place.
+- The account currently has a 100-call budget, so real tests must be treated as
+  scarce.
+- Plan the 1Shot work as mock-first, one minimal real smoke call, then one final
+  end-to-end demo pass.
+
+New planning artifact:
+
+```text
+docs/ONESHOT_INTEGRATION_PLAN.md
+```
+
+## 1Shot Step 1 Complete
+
+Completed Step 1 from `docs/ONESHOT_INTEGRATION_PLAN.md`.
+
+Files changed:
+
+```text
+docs/CURRENT_PROGRESS.md
+docs/ONESHOT_INTEGRATION_NOTES.md
+```
+
+Key findings:
+
+- No 1Shot API key or secret was used.
+- No live 1Shot endpoint was called, so no quota was consumed.
+- 1Shot has two relevant product surfaces:
+  - Public Relayer JSON-RPC, likely no API key required.
+  - Dev Platform API, using dashboard API key + secret to obtain a bearer token.
+- The hackathon relayer integration should prioritize Public Relayer, not the
+  Dev Platform contract-method API, unless Public Relayer proves unsuitable.
+- Base Sepolia `84532` appears in official examples and the testnet relayer host
+  exists, but support remains unverified until one approved
+  `relayer_getCapabilities(["84532"])` smoke call.
+- Next implementation should stay mock-first and introduce a hard guard such as
+  `ONESHOT_REAL_CALLS_ENABLED` before any real call path is wired.
+
+New detailed notes:
+
+```text
+docs/ONESHOT_INTEGRATION_NOTES.md
+```
+
+Recommended next phase:
+
+```text
+1Shot Step 2: Mock Adapter And Type Contract
+```
+
+## 1Shot Step 2 Complete
+
+Implemented Step 2 from `docs/ONESHOT_INTEGRATION_PLAN.md`.
+
+Files changed:
+
+```text
+.env.example
+docs/CURRENT_PROGRESS.md
+docs/LOCAL_ENVIRONMENT.md
+src/server/adapters/mockOneShotAdapter.ts
+src/server/adapters/oneShotAdapter.ts
+src/server/config/spendguard.ts
+```
+
+Key results:
+
+- Added a server-side `OneShotAdapter` contract for quote, submit, and status.
+- Kept the default adapter path in mock mode.
+- Kept mock mode independent from `ONESHOT_API_KEY`.
+- Added `ONESHOT_REAL_CALLS_ENABLED=false` as the second real-call guard.
+- Added a real adapter skeleton that refuses before any real 1Shot network call
+  unless `ONESHOT_MODE=real`, `ONESHOT_REAL_CALLS_ENABLED=true`,
+  and `ONESHOT_BASE_URL` is set. `ONESHOT_API_KEY` remains server-side and
+  optional because the Public Relayer path may not require it.
+- Did not wire real 1Shot calls into the Dashboard or payment UI.
+
+Verification:
+
+```text
+npm run typecheck passed.
+git diff --check passed.
+GET / returned 200 on localhost:3000.
+GET /api/ledger returned 200 on localhost:3000 with relayerInfo.mode=mock.
+```
+
+## 1Shot Step 3 Dashboard Timeline Integration
+
+Implemented the mock-first dashboard timeline integration from
+`docs/ONESHOT_INTEGRATION_PLAN.md`.
+
+Files changed:
+
+```text
+docs/CURRENT_PROGRESS.md
+src/app/api/_lib/demoState.ts
+src/components/Dashboard.tsx
+src/components/RelayerTimeline.tsx
+src/shared/types.ts
+```
+
+Key results:
+
+- Dashboard relayer state now carries the configured 1Shot mode without exposing
+  any API key or secret.
+- The relayer timeline explicitly labels mock mode and says no real 1Shot API
+  call is made.
+- Timeline rendering now includes quote, fee, task, pending, and
+  confirmed/failed states with concise IDs.
+- Existing ERC-7710 Run Agent behavior was left intact.
+
+Verification:
+
+```text
+npm run typecheck passed.
+Restarted the localhost:3000 dev server after it hung compiling /api/ledger.
+HTTP smoke passed:
+- GET / returned 200.
+- GET /api/ledger returned 200.
+- /api/ledger state reports relayerInfo.mode=mock and relayer=not_used.
+```
+
+## 1Shot Step 4 Guarded Real Adapter
+
+Implemented Step 4 from `docs/ONESHOT_INTEGRATION_PLAN.md`.
+
+Files changed:
+
+```text
+.env.example
+docs/CURRENT_PROGRESS.md
+docs/LOCAL_ENVIRONMENT.md
+docs/ONESHOT_INTEGRATION_PLAN.md
+src/server/adapters/mockOneShotAdapter.ts
+src/server/adapters/oneShotAdapter.ts
+src/server/config/spendguard.ts
+```
+
+Local secret/config status:
+
+```text
+ONESHOT_MODE=mock
+ONESHOT_REAL_CALLS_ENABLED=false
+ONESHOT_BASE_URL=https://relayer.1shotapi.dev/relayers
+ONESHOT_API_KEY=<configured in .env.local only>
+ONESHOT_API_SECRET=<configured in .env.local only>
+```
+
+Key results:
+
+- Added `ONESHOT_API_SECRET` as a server-side-only local config value for the
+  Dev Platform path if it becomes necessary.
+- Kept Public Relayer as the preferred integration path.
+- Added guarded JSON-RPC support in `realOneShotAdapter` for:
+  - `relayer_getCapabilities`;
+  - `relayer_getFeeData`;
+  - `relayer_estimate7710Transaction`;
+  - `relayer_send7710Transaction`;
+  - `relayer_getStatus`.
+- Extended the mock adapter to satisfy the same low-level adapter contract.
+- Kept real calls disabled by default. The adapter refuses unless
+  `ONESHOT_MODE=real`, `ONESHOT_REAL_CALLS_ENABLED=true`, and
+  `ONESHOT_BASE_URL` is set.
+- Did not wire real 1Shot calls into Dashboard or the payment path.
+- Did not call any real 1Shot endpoint and did not consume quota.
+
+Verification:
+
+```text
+npm run typecheck passed.
+npm run build passed with the existing ox/tempo dynamic dependency warning.
+After build, .next was cleared and localhost:3000 dev server was restarted.
+GET /api/ledger still returns 200 with the app in mock relayer mode.
+```
+
+## 1Shot Step 5 Quota-Safe Real Smoke
+
+Completed Step 5 from `docs/ONESHOT_INTEGRATION_PLAN.md`.
+
+Files changed:
+
+```text
+docs/CURRENT_PROGRESS.md
+docs/ONESHOT_INTEGRATION_NOTES.md
+docs/ONESHOT_SMOKE_RESULTS.md
+```
+
+Real call performed:
+
+```text
+POST https://relayer.1shotapi.dev/relayers
+method: relayer_getCapabilities
+params: ["84532"]
+auth: none
+```
+
+Call discipline:
+
+```text
+expected calls: 1
+actual observed calls: 1
+retries: 0
+polling: 0
+API key/secret sent: no
+```
+
+Result:
+
+```text
+success
+Base Sepolia 84532 is supported for 1Shot Public Relayer capabilities discovery.
+feeCollector: 0xE936e8FAf4A5655469182A49a505055B71C17604
+targetAddress: 0xf1ef956eff4181Ce913b664713515996858B9Ca9
+USDC: 0x036CbD53842c5426634e7929541eC2318f3dCF7e, decimals 6
+```
+
+Quota note:
+
+```text
+If Public Relayer calls count against the dashboard budget, this phase used one
+call. No further 1Shot probing should happen before the final controlled demo
+or an explicitly approved integration test.
+```
+
+Recommended next phase:
+
+```text
+Step 6: Final End-To-End Demo Pass, or a small pre-Step-6 wiring patch that uses
+the verified capabilities without making additional real calls.
+```
+
+## 1Shot Step 6 Wiring Patch
+
+Completed the pre-Step-6 wiring patch that Turing identified as required before
+an honest real 1Shot end-to-end demo.
+
+Files changed:
+
+```text
+.env.example
+src/app/api/x402/deepseek/risk-brief/erc7710-paid-poc/route.ts
+src/components/RelayerTimeline.tsx
+src/server/config/spendguard.ts
+src/server/x402/erc7710OneShotSettlement.ts
+src/server/x402/erc7710PaidPocResourceServer.ts
+src/server/x402/erc7710SelfSettlement.ts
+```
+
+What changed:
+
+```text
+- Added an ERC-7710 1Shot settlement facilitator for the paid PoC path.
+- In ONESHOT_MODE=real, the x402 resource server now uses 1Shot as the
+  settlement path instead of local self-settlement.
+- The 1Shot path builds a relayer request from the generated ERC-7710 x402
+  payload: permissionContext[] plus the USDC transfer execution.
+- The real path performs estimate -> send -> bounded status polling through the
+  existing guarded oneShotAdapter.
+- Successful settlement records paymentReceipt.oneShot so the Dashboard relayer
+  timeline can show the real quote/task/tx.
+- Base Sepolia 1Shot feeCollector and targetAddress are configured from the
+  single approved Step 5 capabilities smoke, avoiding another capabilities call.
+```
+
+Real-call discipline:
+
+```text
+No live 1Shot calls were made during this wiring patch.
+ONESHOT_MODE remains mock locally.
+ONESHOT_REAL_CALLS_ENABLED remains false locally.
+```
+
+Verification:
+
+```text
+npm run typecheck passed.
+```
+
+Known limits:
+
+```text
+- A real 1Shot-supported paid run has confirmed on Base Sepolia.
+- The next needed run is a final clean reset-to-success capture for judging
+  materials, not another exploratory integration test.
+- Any additional real run should be explicitly approved because it can call
+  1Shot estimate, send, and up to ONESHOT_STATUS_MAX_POLLS status checks.
+- Revoke remains manual MetaMask revoke plus app sync fallback in current
+  MetaMask builds.
+```
+
+## 1Shot-Supported ERC-7710 Paid Run Confirmed
+
+The real paid x402 + ERC-7710 path has produced a confirmed Base Sepolia
+transaction through the 1Shot-supported settlement path:
+
+```text
+tx: 0xf669edc46cd69491719937a6b8f416a88fc0a0d0f70f99f216c05c8b82bc2577
+BaseScan: https://sepolia.basescan.org/tx/0xf669edc46cd69491719937a6b8f416a88fc0a0d0f70f99f216c05c8b82bc2577
+```
+
+Observed USDC transfers:
+
+```text
+10000 atomic USDC = 0.01 USDC service payment to the x402 payTo address
+10944 atomic USDC = 0.010944 USDC relay fee payment to the 1Shot fee collector
+```
+
+Local app state after parser/status fixes:
+
+```text
+Agent Runner: succeeded
+x402 Payment: paid
+1Shot Relayer: confirmed
+ledger: success record present
+```
+
+This is now the proof foundation for the Best x402 + ERC-7710 submission. The
+next work should package and repeat this path cleanly, not broaden the scope.
+
+## Clean E2E User Run Passed
+
+The user completed the Step 2 clean E2E validation on 2026-06-01.
+
+Result document:
+
+```text
+docs/X402_ERC7710_E2E_RESULTS.md
+```
+
+Confirmed transaction:
+
+```text
+0xd864924d7f92e498f51d5a0065c4d1a29ae6629087f5e9602177f0c8590c3a4d
+https://sepolia.basescan.org/tx/0xd864924d7f92e498f51d5a0065c4d1a29ae6629087f5e9602177f0c8590c3a4d
+```
+
+Acceptance checklist passed:
+
+```text
+Agent Runner: succeeded
+x402 Payment: paid
+1Shot Relayer: confirmed
+ledger: has_success
+spent: 0.01
+txHash: present
+```
+
+BaseScan showed a successful `Redeem Delegations` transaction with two USDC
+transfers:
+
+```text
+0.01 USDC service payment
+0.010944 USDC 1Shot relay fee
+```
+
+The user then clicked `Try Over Budget`. The app blocked the oversized action
+before payment/settlement and showed `Agent Runner: blocked`.
+
+Residual UI note:
+
+```text
+The security behavior is correct, but the post-block badge "Policy: exhausted"
+can be confusing when the budget card still shows "$0.99 left". Rename this
+state in a later polish pass to "blocked", "policy violation", or similar.
+```
+
+## Best x402 + ERC-7710 Step 3 Complete
+
+Completed Step 3 from:
+
+```text
+docs/X402_ERC7710_TRACK_OPTIMIZATION_PLAN_CN.md
+```
+
+Files changed:
+
+```text
+src/shared/types.ts
+src/app/api/_lib/demoState.ts
+src/app/api/x402/deepseek/risk-brief/erc7710-paid-poc/route.ts
+src/components/Dashboard.tsx
+src/components/PaymentRail.tsx
+src/app/globals.css
+```
+
+What changed:
+
+```text
+- Added Dashboard-level x402Evidence state.
+- Server state now projects x402 evidence from ledger paymentRequirement and
+  paymentReceipt.
+- Paid ERC-7710 route records x402 requirement fields needed by the Dashboard:
+  scheme, network, asset, assetTransferMethod, and maxTimeoutSeconds.
+- PaymentRail now shows protocol evidence:
+  protected resource, selected requirement, amount, network, asset, payTo,
+  paid-header state, and tx hash.
+- During live runs, the UI distinguishes:
+  402 received / no paid header submitted
+  paid request submitted / x402 payment header submitted
+  settled / header accepted
+  over-budget blocked before 402 payment / no paid header submitted
+```
+
+Verification:
+
+```text
+npm run typecheck passed.
+npm run build passed with the existing ox/tempo dynamic dependency warning.
+Browser check passed at http://127.0.0.1:3010.
+```
+
+Browser check notes:
+
+```text
+- Initial state renders protocol evidence without layout overlap.
+- Existing successful tx state renders scheme=exact and
+  assetTransferMethod=erc7710.
+- After Try Over Budget, PaymentRail shows "Blocked before 402 payment" and
+  "No paid header submitted", while relayer/ledger still retain the previous
+  successful tx proof.
+```
+
+Recommended next phase:
+
+```text
+Step 4: ERC-7710 Proof Rail
+```
+
+## Best x402 + ERC-7710 Focus Lock
+
+Added the current optimization focus and plan docs:
+
+```text
+docs/X402_ERC7710_OPTIMIZATION_FOCUS.md
+docs/X402_ERC7710_TRACK_OPTIMIZATION_PLAN.md
+docs/X402_ERC7710_TRACK_OPTIMIZATION_PLAN_CN.md
+docs/X402_ERC7710_E2E_RESULTS.md
+```
+
+Current priority is to polish the proof chain for the Best x402 + ERC-7710
+track:
+
+```text
+Advanced Permission grant
+-> ERC-7710 payment payload
+-> x402 402 challenge
+-> paid x402 request
+-> SpendGuard budget guard
+-> confirmed Base Sepolia settlement
+-> truthful ledger proof
+```
+
+Do not expand the main scope toward Venice, A2A, 1Shot specialty positioning,
+or production-grade revoke until this judging story is clean.
+
+## P8.5 AI Spending Decision Layer Complete
+
+Implemented the new pre-payment decision layer:
+
+```text
+DeepSeek decides whether spending is worthwhile
+SpendGuard enforces whether spending is allowed
+x402 + ERC-7710 executes only if both pass
+```
+
+Files changed:
+
+```text
+src/shared/types.ts
+src/server/agent-runner/agentSpendDecision.ts
+src/server/agent-runner/agentSpendDecisionStore.ts
+src/server/adapters/agentSpendDecisionAdapter.ts
+src/server/agent-runner/runAgentWithPermission.ts
+src/app/api/agent/precheck/route.ts
+src/app/api/agent/run/route.ts
+src/app/api/x402/deepseek/risk-brief/route.ts
+src/app/api/x402/deepseek/risk-brief/erc7710-paid-poc/route.ts
+src/app/api/_lib/demoState.ts
+src/app/api/demo/reset/route.ts
+src/components/AgentDecisionPanel.tsx
+src/components/Dashboard.tsx
+src/components/AgentControls.tsx
+src/components/SpendLedger.tsx
+src/components/StatusBadge.tsx
+src/app/globals.css
+scripts/p8-agent-decision-smoke.mjs
+package.json
+README.md
+```
+
+What changed:
+
+```text
+- Added AgentSpendDecision shared type:
+  decision, reason, estimatedCostAtomic, budgetBeforeAtomic,
+  budgetAfterAtomic, confidence, policyCheck.
+- Added DeepSeek spending decision adapter with mock fallback.
+- Added current decision store so precheck can show intent before payment.
+- /api/agent/precheck now generates AI spend intent before policy guard.
+- policyCheck is written by SpendGuard as allowed/denied.
+- paid x402 routes require an allowed decision before settlement and attach it
+  to success ledger rows.
+- blocked prechecks attach agentDecision to blocked ledger rows.
+- Dashboard now shows an Agent Decision panel before PaymentRail.
+- SpendLedger now displays AI rationale for blocked/success rows.
+- Added P8 no-spend smoke covering skip, over-budget spend intent, and allowed
+  precheck without MetaMask or settlement.
+```
+
+Verification:
+
+```text
+npm run typecheck
+npm run smoke:p8
+npm run lint
+Browser check at http://127.0.0.1:3000
+```
+
+Browser check notes:
+
+```text
+- Agent Decision panel renders before x402 PaymentRail.
+- Desktop viewport 1280x900 has no horizontal overflow.
+- Decision, PaymentRail, and Relayer columns align in that order.
+- Precheck can fill decision=spend / policyCheck=allowed without submitting a
+  paid header or settlement.
+```
+
+Known note:
+
+```text
+Direct paid route calls without a prior allowed decision are blocked before
+settlement. The normal UI path generates the decision before asking for the
+x402 paid request.
+```
 
 ## Documentation Update Rule
 

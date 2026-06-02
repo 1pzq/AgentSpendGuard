@@ -1,19 +1,36 @@
 "use client";
 
+import { getSmartAccountsEnvironment } from "@metamask/smart-accounts-kit";
 import {
   erc7715ProviderActions,
   type GetGrantedExecutionPermissionsResult,
   type PermissionRequestParameter
 } from "@metamask/smart-accounts-kit/actions";
-import { createWalletClient, custom } from "viem";
+import { ERC20PeriodTransferEnforcer } from "@metamask/smart-accounts-kit/contracts";
+import {
+  decodeDelegations,
+  hashDelegation
+} from "@metamask/smart-accounts-kit/utils";
+import {
+  createPublicClient,
+  createWalletClient,
+  custom,
+  http,
+  isHex
+} from "viem";
 import type { Address, Hex } from "viem";
 import { baseSepolia } from "viem/chains";
 import { generatePrivateKey, privateKeyToAccount } from "viem/accounts";
 import {
   BASE_SEPOLIA_CHAIN_ID,
+  BASE_SEPOLIA_PUBLIC_RPC_URL,
   BASE_SEPOLIA_USDC
 } from "@/shared/chain";
-import type { AdvancedPermissionGrant, AtomicAmount } from "@/shared/types";
+import type {
+  AdvancedPermissionGrant,
+  AtomicAmount,
+  OnchainPermissionAvailableAmount
+} from "@/shared/types";
 import {
   detectMetaMaskProvider,
   ensureBaseSepolia,
@@ -85,10 +102,26 @@ export class AdvancedPermissionError extends Error {
   }
 }
 
+function normalizeAdvancedPermissionRequestError(error: unknown) {
+  const message = error instanceof Error ? error.message : null;
+  const normalized = message?.toLowerCase() ?? "";
+
+  if (
+    normalized.includes("data.justification") &&
+    normalized.includes("invalid characters")
+  ) {
+    return "MetaMask 拒绝了授权说明字段。当前 MetaMask 对 Advanced Permission justification 有字符限制，请刷新页面后重新批准。";
+  }
+
+  return message
+    ? `MetaMask Advanced Permission 请求失败：${message}`
+    : "MetaMask Advanced Permission 请求失败。";
+}
+
 function assertBrowserStorage() {
   if (typeof window === "undefined" || !window.localStorage) {
     throw new AdvancedPermissionError(
-      "MetaMask Advanced Permissions require browser local storage for the demo session account."
+      "MetaMask Advanced Permissions 需要浏览器 localStorage 来保存演示会话账户。"
     );
   }
 }
@@ -103,6 +136,61 @@ function isAddressLike(value: string | null | undefined): value is Address {
 
 function isHexLike(value: string | null | undefined): value is Hex {
   return !!value && /^0x[a-fA-F0-9]*$/.test(value);
+}
+
+function formatExactAtomicAmount(
+  amountAtomic: string,
+  decimals: number,
+  token: string
+) {
+  const unit = BigInt(10) ** BigInt(decimals);
+  const amount = BigInt(amountAtomic);
+  const whole = amount / unit;
+  const fraction = (amount % unit).toString().padStart(decimals, "0");
+  const trimmedFraction = fraction.replace(/0+$/, "");
+  const displayFraction = (trimmedFraction || "00").padEnd(2, "0");
+
+  return `${whole.toString()}.${displayFraction} ${token}`;
+}
+
+function onchainPermissionResult(input: {
+  availableAmountAtomic?: string | null;
+  currentPeriod?: string | null;
+  delegationHash?: string | null;
+  enforcer?: string | null;
+  error?: string | null;
+  grant: AdvancedPermissionGrant;
+  isNewPeriod?: boolean | null;
+  status: OnchainPermissionAvailableAmount["status"];
+}): OnchainPermissionAvailableAmount {
+  const availableAmountAtomic = input.availableAmountAtomic ?? null;
+
+  return {
+    availableAmount:
+      availableAmountAtomic === null
+        ? input.status === "querying"
+          ? "查询中"
+          : input.status === "not_queried"
+            ? "待查询"
+            : "不可用"
+        : formatExactAtomicAmount(
+            availableAmountAtomic,
+            input.grant.tokenDecimals,
+            input.grant.tokenSymbol
+          ),
+    availableAmountAtomic,
+    currentPeriod: input.currentPeriod ?? null,
+    delegationHash: input.delegationHash ?? null,
+    enforcer: input.enforcer ?? null,
+    error: input.error ?? null,
+    isNewPeriod: input.isNewPeriod ?? null,
+    source: "metamask-period-transfer-enforcer",
+    status: input.status,
+    token: input.grant.tokenSymbol,
+    tokenAddress: input.grant.tokenAddress,
+    tokenDecimals: input.grant.tokenDecimals,
+    updatedAt: new Date().toISOString()
+  };
 }
 
 function normalizeUnknown(value: unknown): unknown {
@@ -186,7 +274,7 @@ export function getStoredAdvancedPermissionSessionAccount() {
   const privateKey = window.localStorage.getItem(SESSION_KEY_STORAGE_KEY);
   if (!isHexLike(privateKey)) {
     throw new AdvancedPermissionError(
-      "Stored Advanced Permission session account was not found. Approve the permission again before running the ERC-7710 dry run."
+      "未找到已保存的 Advanced Permission 会话账户。运行 ERC-7710 dry run 前请重新授权。"
     );
   }
 
@@ -198,6 +286,13 @@ function createPermissionClient(provider: EthereumProvider) {
     chain: baseSepolia,
     transport: custom(provider)
   }).extend(erc7715ProviderActions());
+}
+
+function createReadonlyBaseSepoliaClient() {
+  return createPublicClient({
+    chain: baseSepolia,
+    transport: http(BASE_SEPOLIA_PUBLIC_RPC_URL)
+  });
 }
 
 function supportsPeriodicUsdcPermission(
@@ -215,14 +310,14 @@ async function assertAdvancedPermissionsSupported(
 
     if (!supportsPeriodicUsdcPermission(supported)) {
       throw new AdvancedPermissionError(
-        "MetaMask does not report ERC-20 periodic Advanced Permission support for Base Sepolia."
+        "MetaMask 未报告支持 Base Sepolia 上的 ERC-20 周期性 Advanced Permission。"
       );
     }
   } catch (error) {
     if (error instanceof AdvancedPermissionError) throw error;
 
     throw new AdvancedPermissionError(
-      "MetaMask Advanced Permissions are unavailable in this wallet version. Use a MetaMask build that supports ERC-7715 Advanced Permissions.",
+      "当前钱包版本不可用 MetaMask Advanced Permissions。请使用支持 ERC-7715 Advanced Permissions 的 MetaMask 版本。",
       error
     );
   }
@@ -345,7 +440,7 @@ async function readConnectedBaseSepoliaAccount(provider: EthereumProvider) {
   if (!isAddressLike(walletState.account)) {
     throw new WalletConnectionError(
       WALLET_ERROR_CODES.UNKNOWN_WALLET_ERROR,
-      "MetaMask did not return a connected Base Sepolia account."
+      "MetaMask 没有返回已连接的 Base Sepolia 账户。"
     );
   }
 
@@ -392,14 +487,14 @@ async function requestWalletExecutionPermissionRevoke({
       return {
         status: "not_supported",
         message:
-          "MetaMask does not support direct ERC-7715 revoke from this dapp session."
+          "当前 MetaMask 不支持从此 dapp 会话直接撤销 ERC-7715。"
       };
     }
 
     if (isUserRejectedError(error)) {
       return {
         status: "rejected",
-        message: "MetaMask direct revoke was cancelled by the user."
+        message: "用户已取消 MetaMask 直接撤销。"
       };
     }
 
@@ -407,7 +502,7 @@ async function requestWalletExecutionPermissionRevoke({
       status: "failed",
       message:
         errorMessage(error) ??
-        "MetaMask direct revoke failed before the wallet state could be verified."
+        "MetaMask 直接撤销在钱包状态验证前失败。"
     };
   }
 }
@@ -427,7 +522,7 @@ export async function requestAdvancedSpendPermission({
 
   if (isAddressLike(walletAddress) && lowerHex(walletAddress) !== lowerHex(account)) {
     throw new AdvancedPermissionError(
-      "Connected MetaMask account changed before permission approval. Reconnect and retry."
+      "权限批准前，已连接的 MetaMask 账户发生变化。请重新连接后重试。"
     );
   }
 
@@ -464,7 +559,7 @@ export async function requestAdvancedSpendPermission({
 
     if (!grant || grant.permission.type !== "erc20-token-periodic") {
       throw new AdvancedPermissionError(
-        "MetaMask did not return the requested ERC-20 periodic permission grant."
+        "MetaMask 没有返回请求的 ERC-20 周期性权限授权。"
       );
     }
 
@@ -478,9 +573,7 @@ export async function requestAdvancedSpendPermission({
     if (error instanceof AdvancedPermissionError) throw error;
 
     throw new AdvancedPermissionError(
-      error instanceof Error
-        ? `MetaMask Advanced Permission request failed: ${error.message}`
-        : "MetaMask Advanced Permission request failed.",
+      normalizeAdvancedPermissionRequestError(error),
       error
     );
   }
@@ -504,7 +597,7 @@ export async function syncAdvancedSpendPermission(
     lowerHex(account) !== lowerHex(stored.from)
   ) {
     throw new AdvancedPermissionError(
-      "Connected MetaMask account does not match the stored Advanced Permission grant. Reconnect the granting account before syncing revoke."
+      "已连接的 MetaMask 账户与保存的 Advanced Permission 授权不匹配。同步撤销前请重新连接授权账户。"
     );
   }
 
@@ -528,6 +621,102 @@ export async function syncAdvancedSpendPermission(
       sessionAccount: stored.sessionAccount as Address
     })
   };
+}
+
+export async function readAdvancedPermissionOnchainAvailableAmount(
+  stored: AdvancedPermissionGrant
+): Promise<OnchainPermissionAvailableAmount> {
+  if (stored.status !== "granted" || stored.expiry <= Math.floor(Date.now() / 1000)) {
+    return onchainPermissionResult({
+      error: "Advanced Permission 已过期或未处于 granted 状态。",
+      grant: stored,
+      status: "not_applicable"
+    });
+  }
+
+  if (stored.chainId !== BASE_SEPOLIA_CHAIN_ID) {
+    return onchainPermissionResult({
+      error: "Advanced Permission 不在 Base Sepolia 上。",
+      grant: stored,
+      status: "not_applicable"
+    });
+  }
+
+  if (!isHex(stored.context) || stored.context === "0x") {
+    return onchainPermissionResult({
+      error: "保存的 Advanced Permission context 不是有效 hex。",
+      grant: stored,
+      status: "unavailable"
+    });
+  }
+
+  const environment = getSmartAccountsEnvironment(BASE_SEPOLIA_CHAIN_ID);
+  const enforcer = environment.caveatEnforcers.ERC20PeriodTransferEnforcer;
+
+  if (!isAddressLike(enforcer)) {
+    return onchainPermissionResult({
+      error: "Smart Accounts environment 未提供 ERC20PeriodTransferEnforcer。",
+      grant: stored,
+      status: "unavailable"
+    });
+  }
+
+  try {
+    const delegations = decodeDelegations(stored.context);
+    const parentDelegation = delegations[0];
+
+    if (!parentDelegation) {
+      return onchainPermissionResult({
+        error: "保存的 Advanced Permission context 未包含 parent delegation。",
+        enforcer,
+        grant: stored,
+        status: "unavailable"
+      });
+    }
+
+    const periodCaveat = parentDelegation.caveats.find(
+      (caveat) => lowerHex(caveat.enforcer) === lowerHex(enforcer)
+    );
+    const delegationHash = hashDelegation(parentDelegation);
+
+    if (!periodCaveat) {
+      return onchainPermissionResult({
+        delegationHash,
+        enforcer,
+        error: "parent delegation 未包含 ERC20PeriodTransferEnforcer caveat。",
+        grant: stored,
+        status: "unavailable"
+      });
+    }
+
+    const result = await ERC20PeriodTransferEnforcer.read.getAvailableAmount({
+      client: createReadonlyBaseSepoliaClient(),
+      contractAddress: enforcer,
+      delegationHash,
+      delegationManager: stored.delegationManager as Address,
+      terms: periodCaveat.terms
+    });
+
+    return onchainPermissionResult({
+      availableAmountAtomic: result.availableAmount.toString(),
+      currentPeriod: result.currentPeriod.toString(),
+      delegationHash,
+      enforcer,
+      grant: stored,
+      isNewPeriod: result.isNewPeriod,
+      status: "available"
+    });
+  } catch (error) {
+    return onchainPermissionResult({
+      enforcer,
+      error:
+        error instanceof Error
+          ? error.message
+          : "链上 Advanced Permission 可用额度查询失败。",
+      grant: stored,
+      status: "error"
+    });
+  }
 }
 
 export async function revokeAdvancedSpendPermission(
@@ -555,7 +744,7 @@ export async function revokeAdvancedSpendPermission(
     lowerHex(account) !== lowerHex(stored.from)
   ) {
     throw new AdvancedPermissionError(
-      "Connected MetaMask account does not match the stored Advanced Permission grant. Reconnect the granting account before revoking."
+      "已连接的 MetaMask 账户与保存的 Advanced Permission 授权不匹配。撤销前请重新连接授权账户。"
     );
   }
 

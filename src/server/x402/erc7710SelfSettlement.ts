@@ -178,7 +178,7 @@ export function facilitatorAddressesFromPayment(
     .map((value) => addressValue(value, "Facilitator redeemer"));
 }
 
-function assertAcceptedRequirement(paymentPayload: PaymentPayload) {
+export function assertAcceptedRequirement(paymentPayload: PaymentPayload) {
   const accepted = paymentPayload.accepted;
   const mismatches: string[] = [];
 
@@ -213,7 +213,7 @@ function assertSelfFacilitatorSelected(paymentPayload: PaymentPayload) {
   }
 }
 
-function assertPayloadAcceptedMatchesRequirements(
+export function assertPayloadAcceptedMatchesRequirements(
   paymentPayload: PaymentPayload,
   paymentRequirements: PaymentRequirements
 ) {
@@ -243,7 +243,7 @@ function assertPayloadAcceptedMatchesRequirements(
   }
 }
 
-function extractDelegator(paymentPayload: PaymentPayload): Address | undefined {
+export function extractDelegator(paymentPayload: PaymentPayload): Address | undefined {
   const payload = asRecord(paymentPayload.payload);
   const delegator = payload?.delegator;
 
@@ -269,16 +269,10 @@ function settlementIntentKey(paymentPayload: PaymentPayload) {
   ].join(":").toLowerCase();
 }
 
-export function buildErc7710RedeemDelegationsCalldata(
-  paymentPayload: PaymentPayload
-) {
+export function buildErc7710TransferExecution(paymentPayload: PaymentPayload) {
   assertAcceptedRequirement(paymentPayload);
 
   const payload = asRecord(paymentPayload.payload);
-  const delegationManager = addressValue(
-    payload?.delegationManager,
-    "Payload delegation manager"
-  );
   const permissionContext = hexValue(
     payload?.permissionContext,
     "Payload permission context"
@@ -291,11 +285,27 @@ export function buildErc7710RedeemDelegationsCalldata(
     functionName: "transfer",
     args: [payTo, amount]
   });
-  const execution = {
-    target: asset,
-    value: BigInt(0),
-    callData: transferCalldata
+
+  return {
+    execution: {
+      target: asset,
+      value: "0x0",
+      data: transferCalldata
+    },
+    permissionContext
   };
+}
+
+export function buildErc7710RedeemDelegationsCalldata(
+  paymentPayload: PaymentPayload
+) {
+  const payload = asRecord(paymentPayload.payload);
+  const delegationManager = addressValue(
+    payload?.delegationManager,
+    "Payload delegation manager"
+  );
+  const { execution, permissionContext } =
+    buildErc7710TransferExecution(paymentPayload);
 
   return {
     data: encodeFunctionData({
@@ -304,7 +314,13 @@ export function buildErc7710RedeemDelegationsCalldata(
       args: [
         [permissionContext],
         [SINGLE_DEFAULT_MODE],
-        encodeExecutionCalldatas([[execution]])
+        encodeExecutionCalldatas([[
+          {
+            target: execution.target,
+            value: BigInt(execution.value),
+            callData: execution.data
+          }
+        ]])
       ]
     }),
     delegationManager

@@ -1,4 +1,5 @@
 import { x402ExactEvmErc7710ServerScheme } from "@metamask/x402";
+import { decodeDelegations } from "@metamask/smart-accounts-kit/utils";
 import {
   decodePaymentRequiredHeader,
   x402HTTPResourceServer
@@ -16,11 +17,15 @@ import {
   x402ResourceServer
 } from "@x402/core/server";
 import { NextResponse, type NextRequest } from "next/server";
-import { isHex, keccak256, size, type Hex } from "viem";
+import { isHex, type Hex } from "viem";
 import { spendguardConfig } from "@/server/config/spendguard";
 import { configureProjectProxy } from "@/server/network/proxy";
+import { Erc7710OneShotSettlingFacilitatorClient } from "@/server/x402/erc7710OneShotSettlement";
 import { Erc7710SelfSettlingFacilitatorClient } from "@/server/x402/erc7710SelfSettlement";
-import { inspectErc7710RedeemerConstraint } from "@/shared/x402/erc7710DelegationInspector";
+import {
+  inspectErc7710RedeemerConstraint,
+  summarizeErc7710PermissionContext
+} from "@/shared/x402/erc7710DelegationInspector";
 
 export const x402Erc7710PaidPocApiPath =
   spendguardConfig.erc7710PaidPoc.apiPath;
@@ -109,6 +114,21 @@ function optionalStringArray(value: unknown) {
     : [];
 }
 
+function summarizeDelegationChain(permissionContext: string | null) {
+  if (!permissionContext || !isHex(permissionContext)) return [];
+
+  try {
+    return decodeDelegations(permissionContext as Hex).map((delegation, index) => ({
+      caveatCount: delegation.caveats.length,
+      delegate: delegation.delegate,
+      delegator: delegation.delegator,
+      index
+    }));
+  } catch {
+    return [];
+  }
+}
+
 function summarizeErc7710PaymentPayload(paymentPayload: unknown) {
   const payment = asRecord(paymentPayload);
   const accepted = asRecord(payment?.accepted);
@@ -116,6 +136,8 @@ function summarizeErc7710PaymentPayload(paymentPayload: unknown) {
   const payload = asRecord(payment?.payload);
   const permissionContext = optionalString(payload?.permissionContext);
   const permissionContextIsHex = !!permissionContext && isHex(permissionContext);
+  const permissionContextSummary =
+    summarizeErc7710PermissionContext(permissionContext);
   const facilitatorAddresses = optionalStringArray(acceptedExtra?.facilitatorAddresses);
   const redeemerInspection = permissionContextIsHex
     ? inspectErc7710RedeemerConstraint(
@@ -130,12 +152,19 @@ function summarizeErc7710PaymentPayload(paymentPayload: unknown) {
     acceptedPayTo: optionalString(accepted?.payTo),
     acceptedMethod: optionalString(acceptedExtra?.assetTransferMethod),
     acceptedFacilitatorAddresses: facilitatorAddresses,
-    delegationManager: optionalString(payload?.delegationManager),
-    delegator: optionalString(payload?.delegator),
-    permissionContextBytes: permissionContextIsHex ? size(permissionContext) : null,
-    permissionContextHash: permissionContextIsHex
-      ? keccak256(permissionContext)
+    childDelegationDelegator:
+      permissionContextSummary.childDelegationDelegator,
+    childDelegationTarget: permissionContextSummary.childDelegationTarget,
+    delegationCount: permissionContextSummary.decoded
+      ? permissionContextSummary.delegationCount
       : null,
+    delegationManager: optionalString(payload?.delegationManager),
+    delegations: summarizeDelegationChain(permissionContext),
+    delegator: optionalString(payload?.delegator),
+    permissionContextBytes:
+      permissionContextSummary.permissionContextBytes,
+    permissionContextHash:
+      permissionContextSummary.permissionContextHash,
     redeemerEnforcer: redeemerInspection?.redeemerEnforcer ?? null,
     redeemerCaveatCount: redeemerInspection?.redeemerCaveatCount ?? 0,
     acceptedFacilitatorRedeemers:
@@ -189,9 +218,12 @@ function createErc7710PaidPocHTTPServer() {
   const httpFacilitatorClient = new HTTPFacilitatorClient({
     url: spendguardConfig.x402FacilitatorUrl
   });
-  const facilitatorClient = spendguardConfig.erc7710PaidPoc.selfSettle.enabled
-    ? new Erc7710SelfSettlingFacilitatorClient(httpFacilitatorClient)
-    : httpFacilitatorClient;
+  const facilitatorClient =
+    spendguardConfig.oneShot.mode === "real"
+      ? new Erc7710OneShotSettlingFacilitatorClient()
+      : spendguardConfig.erc7710PaidPoc.selfSettle.enabled
+        ? new Erc7710SelfSettlingFacilitatorClient(httpFacilitatorClient)
+        : httpFacilitatorClient;
   const resourceServer = new x402ResourceServer(facilitatorClient);
   const settlementStartTimes = new WeakMap<object, number>();
 

@@ -6,6 +6,12 @@ It lets a user authorize an AI agent with a limited budget, time window, and
 scope. The agent can call paid x402 APIs such as DeepSeek, but every payment is
 bounded, observable, and revocable through MetaMask Smart Accounts.
 
+```text
+AI decides when to spend.
+SpendGuard decides whether it may spend.
+x402 + ERC-7710 proves how it spent.
+```
+
 ## Hackathon
 
 MetaMask Smart Accounts Kit x 1Shot API x Venice AI Dev Cook-Off
@@ -28,12 +34,13 @@ touching a user's main wallet, private key, or unlimited token approvals.
 1. User connects MetaMask.
 2. User creates an agent budget policy.
 3. User approves a scoped permission with MetaMask Smart Accounts Kit.
-4. Agent calls a DeepSeek-backed AI endpoint.
-5. The request is paid through x402.
-6. The payment execution is relayed and tracked through 1Shot.
-7. The dashboard shows spend, remaining budget, action logs, and transaction state.
-8. A second over-budget request is blocked.
-9. User revokes or expires the permission.
+4. Agent generates an AI spending decision with a reason and estimated cost.
+5. SpendGuard enforces budget, endpoint, token, network, and payTo policy.
+6. If allowed, the request is paid through x402 + ERC-7710.
+7. The payment execution is relayed and tracked through 1Shot.
+8. The dashboard shows the AI rationale, spend, remaining budget, logs, and tx state.
+9. A second over-budget request is blocked before any paid header or settlement.
+10. User revokes or expires the permission.
 
 ## Current Files
 
@@ -47,10 +54,11 @@ touching a user's main wallet, private key, or unlimited token approvals.
 
 ## Current Local Status
 
-The app now has real MetaMask EOA connection, real DeepSeek mode, and a real
-x402-protected seller endpoint. The browser-side buyer path has been verified
-through a MetaMask x402 typed-data signature, paid request, DeepSeek result, and
-demo ledger update on Base Sepolia.
+The app now has real MetaMask EOA connection, real DeepSeek mode, a real
+x402-protected seller endpoint, and an AI Spending Decision Layer before paid
+requests. The browser-side buyer path has been verified through a MetaMask
+x402 typed-data signature, paid request, DeepSeek result, and demo ledger update
+on Base Sepolia.
 
 Permission approval, revoke, 1Shot relay, and ledger durability are still demo
 state.

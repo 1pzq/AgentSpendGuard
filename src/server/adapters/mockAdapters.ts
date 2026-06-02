@@ -1,9 +1,11 @@
 import type { AgentRunnerAdapters } from "@/server/agent-runner/runAgentWithPermission";
+import { decideAgentSpend } from "./agentSpendDecisionAdapter";
 import { runConfiguredAiRiskBrief } from "./aiAdapter";
 import { getMockX402Requirement } from "./mockX402Adapter";
 import { payMockRequirement } from "./mockPaymentAdapter";
 import { runMockAiRiskBrief } from "./mockVeniceAdapter";
 
+export { agentSpendDecisionAdapter, decideAgentSpend } from "./agentSpendDecisionAdapter";
 export { configuredAiAdapter, runConfiguredAiRiskBrief } from "./aiAdapter";
 export { deepseekAdapter, runRealDeepSeek } from "./deepseekAdapter";
 export { getMockX402Requirement, mockX402Adapter } from "./mockX402Adapter";
@@ -23,12 +25,14 @@ export {
 export { mockVeniceAdapter, runMockAiRiskBrief, runMockVenice } from "./mockVeniceAdapter";
 
 export const mockAgentRunnerAdapters: AgentRunnerAdapters = {
+  decideAgentSpend,
   getRequirement: getMockX402Requirement,
   payRequirement: payMockRequirement,
   runAiRiskBrief: runMockAiRiskBrief
 };
 
 export const demoAgentRunnerAdapters: AgentRunnerAdapters = {
+  decideAgentSpend,
   getRequirement: getMockX402Requirement,
   payRequirement: payMockRequirement,
   runAiRiskBrief: runConfiguredAiRiskBrief

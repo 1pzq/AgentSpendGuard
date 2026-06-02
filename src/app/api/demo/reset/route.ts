@@ -1,3 +1,4 @@
+import { clearCurrentAgentSpendDecision } from "@/server/agent-runner/agentSpendDecisionStore";
 import { resetLedgerDemoState } from "@/server/ledger/store";
 import {
   resetPermissionDemoState,
@@ -13,6 +14,7 @@ export async function POST() {
     status: "not_requested"
   });
   resetLedgerDemoState();
+  clearCurrentAgentSpendDecision();
   setDemoPhase("initial");
 
   return jsonOk({

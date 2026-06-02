@@ -106,7 +106,7 @@ function requireBrowserWindow(): EthereumWindow {
   if (typeof window === "undefined") {
     throw new WalletConnectionError(
       WALLET_ERROR_CODES.WALLET_NOT_FOUND,
-      "MetaMask is only available in a browser window."
+      "MetaMask 只能在浏览器窗口中使用。"
     );
   }
 
@@ -142,7 +142,7 @@ async function readProviderChainId(provider: EthereumProvider): Promise<string |
   try {
     return normalizeChainId(await provider.request({ method: "eth_chainId" }));
   } catch (error) {
-    throw unknownWalletError(error, "Reading the current chain failed.");
+    throw unknownWalletError(error, "读取当前链失败。");
   }
 }
 
@@ -168,7 +168,7 @@ export function detectMetaMaskProvider(): EthereumProvider {
   if (!injectedProvider) {
     throw new WalletConnectionError(
       WALLET_ERROR_CODES.WALLET_NOT_FOUND,
-      "MetaMask was not found. Install or enable the MetaMask browser extension."
+      "未找到 MetaMask。请安装或启用 MetaMask 浏览器扩展。"
     );
   }
 
@@ -179,7 +179,7 @@ export function detectMetaMaskProvider(): EthereumProvider {
   if (!metaMaskProvider) {
     throw new WalletConnectionError(
       WALLET_ERROR_CODES.WALLET_NOT_METAMASK,
-      "A wallet provider was found, but it is not MetaMask."
+      "检测到钱包 provider，但不是 MetaMask。"
     );
   }
 
@@ -205,14 +205,14 @@ export async function connectMetaMask(): Promise<WalletState> {
     if (isUserRejectedRequest(error)) {
       throw new WalletConnectionError(
         WALLET_ERROR_CODES.USER_REJECTED,
-        "MetaMask connection was rejected.",
+        "MetaMask 连接已被拒绝。",
         error
       );
     }
 
     throw new WalletConnectionError(
       WALLET_ERROR_CODES.UNKNOWN_WALLET_ERROR,
-      providerErrorMessage(error) ?? "MetaMask connection failed.",
+      providerErrorMessage(error) ?? "MetaMask 连接失败。",
       error
     );
   }
@@ -234,7 +234,7 @@ export async function getCurrentWalletState(): Promise<WalletState> {
       isConnected: accounts.length > 0
     };
   } catch (error) {
-    throw unknownWalletError(error, "Reading the current wallet state failed.");
+    throw unknownWalletError(error, "读取当前钱包状态失败。");
   }
 }
 
@@ -255,19 +255,19 @@ export async function ensureBaseSepolia(
 
     return verifyBaseSepoliaSelected(
       provider,
-      "MetaMask did not switch to Base Sepolia."
+      "MetaMask 没有切换到 Base Sepolia。"
     );
   } catch (switchError) {
     if (isUserRejectedRequest(switchError)) {
       throw new WalletConnectionError(
         WALLET_ERROR_CODES.CHAIN_SWITCH_REJECTED,
-        "Switching to Base Sepolia was rejected.",
+        "切换到 Base Sepolia 已被拒绝。",
         switchError
       );
     }
 
     if (!isUnrecognizedChain(switchError)) {
-      throw unknownWalletError(switchError, "Switching to Base Sepolia failed.");
+      throw unknownWalletError(switchError, "切换到 Base Sepolia 失败。");
     }
   }
 
@@ -280,12 +280,12 @@ export async function ensureBaseSepolia(
     if (isUserRejectedRequest(addError)) {
       throw new WalletConnectionError(
         WALLET_ERROR_CODES.CHAIN_ADD_REJECTED,
-        "Adding Base Sepolia to MetaMask was rejected.",
+        "向 MetaMask 添加 Base Sepolia 已被拒绝。",
         addError
       );
     }
 
-    throw unknownWalletError(addError, "Adding Base Sepolia to MetaMask failed.");
+    throw unknownWalletError(addError, "向 MetaMask 添加 Base Sepolia 失败。");
   }
 
   try {
@@ -297,17 +297,17 @@ export async function ensureBaseSepolia(
     if (isUserRejectedRequest(switchError)) {
       throw new WalletConnectionError(
         WALLET_ERROR_CODES.CHAIN_SWITCH_REJECTED,
-        "Switching to Base Sepolia was rejected.",
+        "切换到 Base Sepolia 已被拒绝。",
         switchError
       );
     }
 
-    throw unknownWalletError(switchError, "Switching to Base Sepolia failed.");
+    throw unknownWalletError(switchError, "切换到 Base Sepolia 失败。");
   }
 
   return verifyBaseSepoliaSelected(
     provider,
-    "MetaMask added Base Sepolia but did not select it."
+    "MetaMask 已添加 Base Sepolia，但没有选中该网络。"
   );
 }
 
@@ -317,7 +317,7 @@ export async function connectBaseSepoliaWallet(): Promise<BaseSepoliaWalletInfo>
   if (!connectedState.account) {
     throw new WalletConnectionError(
       WALLET_ERROR_CODES.UNKNOWN_WALLET_ERROR,
-      "MetaMask did not return a connected account."
+      "MetaMask 没有返回已连接账户。"
     );
   }
 
@@ -329,7 +329,7 @@ export async function connectBaseSepoliaWallet(): Promise<BaseSepoliaWalletInfo>
   if (currentState.chainId !== ensuredChainId) {
     throw new WalletConnectionError(
       WALLET_ERROR_CODES.UNKNOWN_WALLET_ERROR,
-      "MetaMask is not on Base Sepolia after network setup."
+      "网络设置后，MetaMask 仍未处于 Base Sepolia。"
     );
   }
 

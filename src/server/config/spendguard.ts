@@ -122,6 +122,16 @@ const mode = readModeEnv("SPENDGUARD_MODE", "mock");
 const aiProvider = readAiProviderEnv("AI_PROVIDER", "deepseek");
 const aiMode = readModeEnv("AI_MODE", "mock");
 const oneshotMode = readModeEnv("ONESHOT_MODE", "mock");
+const oneShotBaseUrl = readOptionalEnv("ONESHOT_BASE_URL");
+const oneShotRealCallsEnabled = readBooleanEnv(
+  "ONESHOT_REAL_CALLS_ENABLED",
+  false
+);
+const oneShotApiKeyConfigured = !!readOptionalEnv("ONESHOT_API_KEY");
+const oneShotApiSecretConfigured = !!readOptionalEnv("ONESHOT_API_SECRET");
+const oneShotWebhookSecretConfigured = !!readOptionalEnv(
+  "ONESHOT_WEBHOOK_SECRET"
+);
 const veniceMode = readModeEnv("VENICE_MODE", "mock");
 const deepseekMode = readModeEnv("DEEPSEEK_MODE", aiMode);
 const erc7710PaidPocEnabled = readBooleanEnv(
@@ -143,19 +153,6 @@ const erc7710SelfSettleEnabled = readBooleanEnv(
 const erc7710SelfSettleFacilitatorAddress =
   readOptionalAddressEnv("FACILITATOR_ADDRESS");
 const x402FacilitatorUrl = readOptionalEnv("X402_FACILITATOR_URL");
-const metamaskBaseSepoliaErc7710FacilitatorAddresses = [
-  "0xB01caEa8c6C47bbf4F4b4c5080Ca642043359C2E",
-  "0xB42F812A44c22cc6b861478900401ee759EbEAD6",
-  "0xC066ac5D385419B1A8c43A0E146fA439837a8B8c"
-] as const;
-const erc7710FacilitatorAddresses = readAddressListEnv(
-  "X402_ERC7710_FACILITATOR_ADDRESSES",
-  erc7710SelfSettleEnabled && erc7710SelfSettleFacilitatorAddress
-    ? [erc7710SelfSettleFacilitatorAddress]
-    : x402FacilitatorUrl?.includes("tx-sentinel-base-sepolia.api.cx.metamask.io")
-    ? metamaskBaseSepoliaErc7710FacilitatorAddresses
-    : []
-);
 const targetChainId = readPositiveIntegerEnv(
   "TARGET_CHAIN_ID",
   BASE_SEPOLIA_CHAIN_ID
@@ -163,6 +160,35 @@ const targetChainId = readPositiveIntegerEnv(
 const targetChainKey = process.env.TARGET_CHAIN_NAME ?? BASE_SEPOLIA_CHAIN_KEY;
 const targetChainDisplayName =
   targetChainKey === BASE_SEPOLIA_CHAIN_KEY ? BASE_SEPOLIA_CHAIN_NAME : targetChainKey;
+const oneShotBaseSepoliaFeeCollector =
+  "0xE936e8FAf4A5655469182A49a505055B71C17604";
+const oneShotBaseSepoliaTargetAddress =
+  "0xf1ef956eff4181Ce913b664713515996858B9Ca9";
+const oneShotFeeCollector =
+  readOptionalAddressEnv("ONESHOT_FEE_COLLECTOR") ??
+  (targetChainId === BASE_SEPOLIA_CHAIN_ID
+    ? oneShotBaseSepoliaFeeCollector
+    : undefined);
+const oneShotTargetAddress =
+  readOptionalAddressEnv("ONESHOT_TARGET_ADDRESS") ??
+  (targetChainId === BASE_SEPOLIA_CHAIN_ID
+    ? oneShotBaseSepoliaTargetAddress
+    : undefined);
+const metamaskBaseSepoliaErc7710FacilitatorAddresses = [
+  "0xB01caEa8c6C47bbf4F4b4c5080Ca642043359C2E",
+  "0xB42F812A44c22cc6b861478900401ee759EbEAD6",
+  "0xC066ac5D385419B1A8c43A0E146fA439837a8B8c"
+] as const;
+const erc7710FacilitatorAddresses = readAddressListEnv(
+  "X402_ERC7710_FACILITATOR_ADDRESSES",
+  oneshotMode === "real" && oneShotTargetAddress
+    ? [oneShotTargetAddress]
+    : erc7710SelfSettleEnabled && erc7710SelfSettleFacilitatorAddress
+    ? [erc7710SelfSettleFacilitatorAddress]
+    : x402FacilitatorUrl?.includes("tx-sentinel-base-sepolia.api.cx.metamask.io")
+    ? metamaskBaseSepoliaErc7710FacilitatorAddresses
+    : []
+);
 
 export const spendguardChain: ChainConfig = {
   id: targetChainId,
@@ -238,7 +264,7 @@ export const fixedPolicyConfig: PolicyConfig = {
   id: spendguardMockIds.policyId,
   serviceId: spendguardEndpoint.serviceId,
   service: spendguardEndpoint.service,
-  purpose: "Wallet risk brief",
+  purpose: "钱包风险简报",
   token: spendguardToken.symbol,
   tokenDecimals: spendguardToken.decimals,
   chainId: spendguardChain.id,
@@ -253,11 +279,31 @@ export const fixedPolicyConfig: PolicyConfig = {
   payTo: spendguardAllowlist.payTo[0]
 };
 
+export function getOneShotApiKey(): string | undefined {
+  return readOptionalEnv("ONESHOT_API_KEY");
+}
+
+export function getOneShotApiSecret(): string | undefined {
+  return readOptionalEnv("ONESHOT_API_SECRET");
+}
+
 export const spendguardConfig = {
   mode,
   aiProvider,
   aiMode,
   oneshotMode,
+  oneShot: {
+    mode: oneshotMode,
+    baseUrl: oneShotBaseUrl ?? null,
+    feeCollector: oneShotFeeCollector ?? null,
+    targetAddress: oneShotTargetAddress ?? null,
+    realCallsEnabled: oneShotRealCallsEnabled,
+    statusMaxPolls: readPositiveIntegerEnv("ONESHOT_STATUS_MAX_POLLS", 12),
+    statusPollMs: readPositiveIntegerEnv("ONESHOT_STATUS_POLL_MS", 2_500),
+    apiKeyConfigured: oneShotApiKeyConfigured,
+    apiSecretConfigured: oneShotApiSecretConfigured,
+    webhookSecretConfigured: oneShotWebhookSecretConfigured
+  },
   veniceMode,
   veniceApiKey: process.env.VENICE_API_KEY,
   deepseekMode,

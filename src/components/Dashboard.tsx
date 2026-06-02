@@ -9,6 +9,7 @@ import {
   WalletConnectionError
 } from "@/client/wallet/metamask";
 import {
+  readAdvancedPermissionOnchainAvailableAmount,
   requestAdvancedSpendPermission,
   revokeAdvancedSpendPermission
 } from "@/client/permissions/metamaskAdvancedPermissions";
@@ -21,14 +22,26 @@ import {
   dryRunErc7710Payment,
   type Erc7710DryRunPreview
 } from "@/client/x402/dryRunErc7710Payment";
-import { BASE_SEPOLIA_CHAIN_HEX_ID } from "@/shared/chain";
+import {
+  BASE_SEPOLIA_CHAIN_HEX_ID,
+  BASE_SEPOLIA_CHAIN_ID,
+  BASE_SEPOLIA_USDC
+} from "@/shared/chain";
 import type {
   ApiResponse,
+  DashboardAccounting,
   DashboardPolicyConfig,
+  Erc7710PayloadProof,
+  OnchainPermissionAvailableAmount,
   SpendGuardDemoState,
-  StateEnums
+  StateEnums,
+  X402ChallengeStatus,
+  X402Evidence,
+  X402PaymentHeaderStatus
 } from "@/shared/types";
+import { buildErc7710ProofFromGrant } from "@/shared/x402/erc7710DelegationInspector";
 import { AgentControls, DemoCommand } from "./AgentControls";
+import { AgentDecisionPanel } from "./AgentDecisionPanel";
 import { PaymentRail } from "./PaymentRail";
 import { PermissionPreview } from "./PermissionPreview";
 import { PolicyCard } from "./PolicyCard";
@@ -43,7 +56,7 @@ import { WalletPanel } from "./WalletPanel";
 const POLICY_DEFAULTS: DashboardPolicyConfig = {
   id: "policy-demo-deepseek-001",
   service: "DeepSeek",
-  purpose: "Wallet risk brief",
+  purpose: "钱包风险简报",
   token: "USDC",
   maxSpend: 1,
   pricePerCall: 0.01,
@@ -64,6 +77,41 @@ const ERC7710_PAID_POC_DEFAULTS: Erc7710PaidPocConfig = {
   amountAtomic: "10000",
   enabled: false,
   priceLabel: "0.01 USDC"
+};
+const ERC7710_PAID_POC_RESOURCE = "/x402/deepseek/risk-brief/erc7710-paid-poc";
+
+const INITIAL_ACCOUNTING: DashboardAccounting = {
+  agentBudgetConsumed: "0.00 USDC",
+  agentBudgetConsumedAtomic: "0",
+  policyBudgetCovers: "x402_service_price_only",
+  policyNote:
+    "演示预算只计算 x402 服务价；1Shot 中继费会作为钱包扣款单独展示。",
+  relayFee: "结算报价后显示",
+  relayFeeAtomic: null,
+  remainingBudget: "1.00 USDC",
+  remainingBudgetAtomic: "1000000",
+  servicePrice: "0.01 USDC",
+  servicePriceAtomic: ERC7710_PAID_POC_DEFAULTS.amountAtomic,
+  source: "policy_projection",
+  token: "USDC",
+  totalWalletDebit: "结算后显示",
+  totalWalletDebitAtomic: null
+};
+
+const INITIAL_ONCHAIN_PERMISSION: OnchainPermissionAvailableAmount = {
+  availableAmount: "不可用",
+  availableAmountAtomic: null,
+  currentPeriod: null,
+  delegationHash: null,
+  enforcer: null,
+  error: "尚未保存 MetaMask Advanced Permission 授权。",
+  isNewPeriod: null,
+  source: "metamask-period-transfer-enforcer",
+  status: "not_applicable",
+  token: "USDC",
+  tokenAddress: null,
+  tokenDecimals: 6,
+  updatedAt: null
 };
 
 export const STATE_ENUMS: StateEnums = {
@@ -95,11 +143,11 @@ export const STATE_ENUMS: StateEnums = {
   revocation: ["available", "revoking", "revoked", "failed"]
 };
 
-const INITIAL_NARRATIVE = "Connect MetaMask to begin the bounded agent budget flow.";
+const INITIAL_NARRATIVE = "连接 MetaMask，开始受预算约束的 agent 支付流程。";
 const FALLBACK_DEMO_NOTE =
-  "Fallback: the static story remains in prototype/index.html, and the mocked API demo can still be validated through the backend routes after Reset.";
+  "兜底：静态故事仍在 prototype/index.html；重置后仍可通过后端路由验证模拟 API 演示。";
 const WALLET_CHANGED_NOTE =
-  "MetaMask account or network changed. Reconnect before approving or spending.";
+  "MetaMask 账号或网络已变化。授权或支出前请重新连接。";
 
 type BusyAction =
   | "connect"
@@ -114,25 +162,24 @@ type BusyAction =
 type RunFailurePhase = "precheck" | "refresh" | Erc7710PaidPocStage;
 
 const ERC7710_RUN_STAGE_COPY: Record<Erc7710PaidPocStage, string> = {
-  requesting_402: "Requesting the ERC-7710 x402 challenge from the server.",
+  requesting_402: "正在向服务端请求 ERC-7710 x402 challenge。",
   building_delegation_payload:
-    "Building the ERC-7710 x402 delegation payload from the stored grant.",
+    "正在基于已保存授权构造 ERC-7710 x402 delegation payload。",
   preflighting_settlement:
-    "Simulating ERC-7710 settlement locally before submitting payment.",
+    "提交支付前正在本地模拟 ERC-7710 结算。",
   submitting_paid_request:
-    "Submitting the ERC-7710 paid request with the session permission.",
-  settling: "Verifying ERC-7710 settlement and refreshing the spend ledger."
+    "正在用会话权限提交 ERC-7710 付费请求。",
+  settling: "正在验证 ERC-7710 结算并刷新支出账本。"
 };
 
 const ERC7710_PAID_POC_STAGE_COPY: Record<Erc7710PaidPocStage, string> = {
-  requesting_402: "Requesting the ERC-7710 paid PoC x402 challenge.",
+  requesting_402: "正在请求 ERC-7710 付费 PoC 的 x402 challenge。",
   building_delegation_payload:
-    "Building the ERC-7710 x402 delegation payload from the stored grant.",
+    "正在基于已保存授权构造 ERC-7710 x402 delegation payload。",
   preflighting_settlement:
-    "Simulating ERC-7710 settlement locally before submitting to the facilitator.",
-  submitting_paid_request:
-    "Submitting the ERC-7710 paid request for 0.01 USDC.",
-  settling: "Verifying ERC-7710 settlement and refreshing the spend ledger."
+    "提交到 facilitator 前正在本地模拟 ERC-7710 结算。",
+  submitting_paid_request: "正在提交 0.01 USDC 的 ERC-7710 付费请求。",
+  settling: "正在验证 ERC-7710 结算并刷新支出账本。"
 };
 
 type WalletFailureStatus = Extract<
@@ -152,32 +199,32 @@ const WALLET_CONNECTION_FAILURE_COPY: Record<
   [WALLET_ERROR_CODES.WALLET_NOT_FOUND]: {
     walletStatus: "unsupported",
     message:
-      "MetaMask was not detected. Install or enable the extension, then retry Connect."
+      "未检测到 MetaMask。请安装或启用扩展后重新连接。"
   },
   [WALLET_ERROR_CODES.WALLET_NOT_METAMASK]: {
     walletStatus: "unsupported",
     message:
-      "A wallet provider was found, but it is not MetaMask. Use MetaMask on Base Sepolia for this demo."
+      "检测到钱包 provider，但不是 MetaMask。此演示需要在 Base Sepolia 上使用 MetaMask。"
   },
   [WALLET_ERROR_CODES.USER_REJECTED]: {
     walletStatus: "disconnected",
     message:
-      "Connection was cancelled in MetaMask. Wallet remains disconnected and no policy was approved."
+      "你在 MetaMask 中取消了连接。钱包仍未连接，策略也未授权。"
   },
   [WALLET_ERROR_CODES.CHAIN_SWITCH_REJECTED]: {
     walletStatus: "unsupported",
     message:
-      "Switching to Base Sepolia was cancelled. Wallet remains unsupported for this demo and no policy was approved."
+      "你取消了切换到 Base Sepolia。当前钱包不支持此演示，策略未授权。"
   },
   [WALLET_ERROR_CODES.CHAIN_ADD_REJECTED]: {
     walletStatus: "unsupported",
     message:
-      "Adding Base Sepolia to MetaMask was cancelled. Wallet remains unsupported for this demo and no policy was approved."
+      "你取消了向 MetaMask 添加 Base Sepolia。当前钱包不支持此演示，策略未授权。"
   },
   [WALLET_ERROR_CODES.UNKNOWN_WALLET_ERROR]: {
     walletStatus: "disconnected",
     message:
-      "MetaMask connection failed before permission setup. Wallet remains disconnected and no policy was approved."
+      "MetaMask 在权限设置前连接失败。钱包仍未连接，策略未授权。"
   }
 };
 
@@ -193,23 +240,135 @@ function createInitialState(): SpendGuardDemoState {
     revocation: "available",
     block: {
       attempted: false,
-      reason: "Second paid action has not been requested."
+      reason: "尚未尝试超预算请求。"
     },
     walletInfo: {
       eoa: null,
       smartAccount: null,
-      chain: "Base Sepolia required"
+      chain: "需要 Base Sepolia"
     },
     advancedPermissionGrant: null,
+    erc7710Proof: buildErc7710ProofFromGrant({ grant: null }),
     policyConfig: { ...POLICY_DEFAULTS },
+    accounting: { ...INITIAL_ACCOUNTING },
+    agentDecision: null,
+    onchainPermission: { ...INITIAL_ONCHAIN_PERMISSION },
     relayerInfo: {
+      mode: "mock",
       quoteId: null,
       fee: null,
+      feeAtomic: null,
+      feeCollector: null,
       taskId: null,
+      totalWalletDebitAtomic: null,
       txHash: null
     },
+    x402Evidence: projectedX402Evidence({
+      amountAtomic: ERC7710_PAID_POC_DEFAULTS.amountAtomic,
+      challengeStatus: "idle",
+      paymentHeaderStatus: "not_applicable",
+      policyConfig: POLICY_DEFAULTS
+    }),
     veniceResult: null,
     ledgerEntries: []
+  };
+}
+
+function projectedX402Evidence({
+  amountAtomic,
+  challengeStatus,
+  paymentHeaderStatus,
+  policyConfig,
+  source = "policy_projection",
+  txHash = null
+}: {
+  amountAtomic: string;
+  challengeStatus: X402ChallengeStatus;
+  paymentHeaderStatus: X402PaymentHeaderStatus;
+  policyConfig: DashboardPolicyConfig;
+  source?: X402Evidence["selectedRequirement"]["source"];
+  txHash?: string | null;
+}): X402Evidence {
+  const submitted =
+    paymentHeaderStatus === "submitted" || paymentHeaderStatus === "settled";
+
+  return {
+    challengeStatus,
+    paymentHeaderStatus,
+    protectedResource: ERC7710_PAID_POC_RESOURCE,
+    selectedRequirement: {
+      id: null,
+      endpoint: ERC7710_PAID_POC_RESOURCE,
+      method: "POST",
+      scheme: "exact",
+      network: `eip155:${BASE_SEPOLIA_CHAIN_ID}`,
+      asset: BASE_SEPOLIA_USDC.address,
+      assetLabel: `${policyConfig.token} (${BASE_SEPOLIA_USDC.address})`,
+      amountAtomic,
+      token: policyConfig.token,
+      tokenDecimals: 6,
+      payTo: policyConfig.payTo,
+      assetTransferMethod: "erc7710",
+      maxTimeoutSeconds: 300,
+      source
+    },
+    paidRequest: {
+      submitted,
+      settled: paymentHeaderStatus === "settled",
+      txHash
+    },
+    updatedAt: new Date().toISOString()
+  };
+}
+
+function x402EvidenceForStage(
+  state: SpendGuardDemoState,
+  amountAtomic: string,
+  stage: Erc7710PaidPocStage
+) {
+  const paidRequestStarted =
+    stage === "submitting_paid_request" || stage === "settling";
+
+  return projectedX402Evidence({
+    amountAtomic,
+    challengeStatus: paidRequestStarted
+      ? "paid_request_submitted"
+      : "received_402",
+    paymentHeaderStatus: paidRequestStarted ? "submitted" : "not_submitted",
+    policyConfig: state.policyConfig,
+    source: "unpaid_402"
+  });
+}
+
+function x402EvidenceForDryRun(
+  state: SpendGuardDemoState,
+  preview: Erc7710DryRunPreview
+) {
+  return projectedX402Evidence({
+    amountAtomic: preview.requirement.amountAtomic,
+    challengeStatus: "received_402",
+    paymentHeaderStatus: "not_submitted",
+    policyConfig: state.policyConfig,
+    source: "unpaid_402"
+  });
+}
+
+function stateWithErc7710Proof(
+  state: SpendGuardDemoState,
+  payload: Erc7710PayloadProof | null,
+  status: SpendGuardDemoState["erc7710Proof"]["status"],
+  validationMessage: string,
+  payer = state.erc7710Proof.payer
+): SpendGuardDemoState {
+  return {
+    ...state,
+    erc7710Proof: buildErc7710ProofFromGrant({
+      grant: state.advancedPermissionGrant,
+      payload,
+      payer,
+      status,
+      validationMessage
+    })
   };
 }
 
@@ -219,6 +378,21 @@ function roundMoney(value: number) {
 
 function remainingBudget(state: SpendGuardDemoState) {
   return roundMoney(state.policyConfig.maxSpend - state.policyConfig.spent);
+}
+
+function successfulPaidCallCount(state: SpendGuardDemoState) {
+  return state.ledgerEntries.filter(
+    (entry) => entry.status === "success" || entry.status === "paid_ai_failed"
+  ).length;
+}
+
+function canUseStoredGrantForPaidCall(state: SpendGuardDemoState) {
+  return (
+    state.wallet === "connected" &&
+    state.policy === "active" &&
+    (state.permission === "approved" || state.permission === "redeemed") &&
+    state.advancedPermissionGrant !== null
+  );
 }
 
 function shortenAddress(address: string) {
@@ -245,7 +419,7 @@ function connectFailureCopy(error: unknown): WalletConnectionFailureCopy {
     ) {
       return {
         ...copy,
-        message: `${copy.message} Detail: ${error.message}`
+        message: `${copy.message} 详情：${error.message}`
       };
     }
 
@@ -256,8 +430,8 @@ function connectFailureCopy(error: unknown): WalletConnectionFailureCopy {
     walletStatus: "disconnected",
     message:
       error instanceof Error
-        ? `${error.message} Wallet remains disconnected and no policy was approved.`
-        : "Wallet connection failed. Wallet remains disconnected and no policy was approved."
+        ? `${error.message} 钱包仍未连接，策略未授权。`
+        : "钱包连接失败。钱包仍未连接，策略未授权。"
   };
 }
 
@@ -318,18 +492,42 @@ function paymentStateForPaidPocStage(
 
 function runFailureMessage(phase: RunFailurePhase | null, message: string) {
   if (!phase) return message;
-  if (phase === "precheck") return `Agent precheck failed: ${message}`;
-  if (phase === "refresh") return `Ledger refresh failed after payment: ${message}`;
-  return `${ERC7710_RUN_STAGE_COPY[phase]} Failed: ${message}`;
+  if (phase === "precheck") return `Agent 预检查失败：${message}`;
+  if (phase === "refresh") return `支付后刷新账本失败：${message}`;
+  return `${ERC7710_RUN_STAGE_COPY[phase]} 失败：${message}`;
+}
+
+function hydratedNarrative(state: SpendGuardDemoState) {
+  const paidCalls = successfulPaidCallCount(state);
+
+  if (state.payment === "blocked") {
+    return `超预算请求已在 x402 paid header 提交前被阻断。同一个 Advanced Permission 授权下保留 ${paidCalls} 次已支付调用记录。`;
+  }
+
+  if (state.agentAction === "succeeded" && state.payment === "paid") {
+    const txHash = state.relayerInfo.txHash
+      ? ` 交易 ${shortenAddress(state.relayerInfo.txHash)} 已写入账本。`
+      : "";
+    const callCopy = paidCalls > 0 ? `第 #${paidCalls} 次付费调用已确认。` : "";
+
+    return `${callCopy}ERC-7710 结算复用了已保存的 Advanced Permission 授权。SpendGuard 已将 ${state.policyConfig.spent.toFixed(2)} USDC 计入 agent 预算，剩余 ${remainingBudget(state).toFixed(2)} USDC。${txHash}`;
+  }
+
+  if (state.permission === "approved" && state.advancedPermissionGrant) {
+    return "已恢复保存的 MetaMask Advanced Permission 授权。运行 Agent 时可直接使用 ERC-7710，无需重新请求权限。";
+  }
+
+  return INITIAL_NARRATIVE;
 }
 
 function paidPocFailureMessage(
-  phase: Erc7710PaidPocStage | "refresh" | null,
+  phase: Erc7710PaidPocStage | "precheck" | "refresh" | null,
   message: string
 ) {
   if (!phase) return message;
-  if (phase === "refresh") return `Ledger refresh failed after ERC-7710 paid PoC: ${message}`;
-  return `${ERC7710_PAID_POC_STAGE_COPY[phase]} Failed: ${message}`;
+  if (phase === "precheck") return `Agent 支出决策失败：${message}`;
+  if (phase === "refresh") return `ERC-7710 付费 PoC 后刷新账本失败：${message}`;
+  return `${ERC7710_PAID_POC_STAGE_COPY[phase]} 失败：${message}`;
 }
 
 export function Dashboard({
@@ -348,9 +546,9 @@ export function Dashboard({
   const busyRef = useRef(false);
   const connectingWalletRef = useRef(false);
   const runFailurePhaseRef = useRef<RunFailurePhase | null>(null);
-  const paidPocFailurePhaseRef = useRef<Erc7710PaidPocStage | "refresh" | null>(
-    null
-  );
+  const paidPocFailurePhaseRef = useRef<
+    Erc7710PaidPocStage | "precheck" | "refresh" | null
+  >(null);
   const walletEpochRef = useRef(0);
 
   const remaining = useMemo(() => remainingBudget(state), [state]);
@@ -376,12 +574,7 @@ export function Dashboard({
         if (cancelled) return;
 
         setState(persistedState);
-        setNarrative(
-          persistedState.permission === "approved" &&
-            persistedState.advancedPermissionGrant
-            ? "Stored MetaMask Advanced Permission grant restored. Run Agent can use ERC-7710 without requesting a new permission."
-            : INITIAL_NARRATIVE
-        );
+        setNarrative(hydratedNarrative(persistedState));
       } catch {
         if (!cancelled) {
           setNarrative(INITIAL_NARRATIVE);
@@ -432,7 +625,7 @@ export function Dashboard({
         chainHex === BASE_SEPOLIA_CHAIN_HEX_ID ? "disconnected" : "unsupported";
       const message =
         walletStatus === "unsupported"
-          ? "MetaMask left Base Sepolia. Reconnect on Base Sepolia before approving or spending."
+          ? "MetaMask 已离开 Base Sepolia。授权或支出前请重新连接到 Base Sepolia。"
           : WALLET_CHANGED_NOTE;
 
       resetAfterWalletChange(walletStatus, message);
@@ -441,7 +634,7 @@ export function Dashboard({
     function handleDisconnect() {
       resetAfterWalletChange(
         "disconnected",
-        "MetaMask disconnected. Reconnect before approving or spending."
+        "MetaMask 已断开连接。授权或支出前请重新连接。"
       );
     }
 
@@ -455,6 +648,62 @@ export function Dashboard({
       provider.removeListener?.("disconnect", handleDisconnect);
     };
   }, []);
+
+  useEffect(() => {
+    const grant = state.advancedPermissionGrant;
+
+    if (!grant || state.wallet !== "connected" || state.policy === "revoked") {
+      return;
+    }
+
+    const activeGrant = grant;
+    let cancelled = false;
+
+    setState((current) => {
+      if (current.advancedPermissionGrant?.context !== activeGrant.context) {
+        return current;
+      }
+
+      return {
+        ...current,
+        onchainPermission: {
+          ...current.onchainPermission,
+          availableAmount: "查询中",
+          error: null,
+          status: "querying",
+          updatedAt: new Date().toISOString()
+        }
+      };
+    });
+
+    async function refreshOnchainAvailableAmount() {
+      const result = await readAdvancedPermissionOnchainAvailableAmount(activeGrant);
+
+      if (cancelled) return;
+
+      setState((current) => {
+        if (current.advancedPermissionGrant?.context !== activeGrant.context) {
+          return current;
+        }
+
+        return {
+          ...current,
+          onchainPermission: result
+        };
+      });
+    }
+
+    void refreshOnchainAvailableAmount();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [
+    state.advancedPermissionGrant?.context,
+    state.accounting.agentBudgetConsumedAtomic,
+    state.policy,
+    state.wallet
+  ]);
 
   async function runExclusive(actionName: BusyAction, action: () => Promise<void>) {
     if (busyRef.current) return;
@@ -475,7 +724,7 @@ export function Dashboard({
 
       try {
         connectingWalletRef.current = true;
-        setNarrative("Opening MetaMask. Confirm the account and Base Sepolia network.");
+        setNarrative("正在打开 MetaMask。请确认账号和 Base Sepolia 网络。");
         const walletInfo = await connectBaseSepoliaWallet();
         const { state: nextState } = await postDashboardAction("/api/wallet/connect", {
           walletInfo
@@ -492,7 +741,7 @@ export function Dashboard({
         setNarrative(
           `MetaMask connected as ${shortenAddress(
             walletInfo.account
-          )} on Base Sepolia. Review the scoped permission before approval.`
+          )}，网络为 Base Sepolia。批准前请确认权限范围。`
         );
       } catch (error) {
         const failure = connectFailureNarrative(error);
@@ -513,9 +762,9 @@ export function Dashboard({
 
       try {
         setNarrative(
-          `Opening MetaMask Advanced Permissions for a ${state.policyConfig.maxSpend.toFixed(
+          `正在打开 MetaMask Advanced Permissions，准备创建 ${state.policyConfig.maxSpend.toFixed(
             2
-          )} USDC / 24h Base Sepolia grant.`
+          )} USDC / 24 小时的 Base Sepolia 授权。`
         );
         const advancedPermissionGrant = await requestAdvancedSpendPermission({
           maxSpendAtomic: decimalToAtomic(state.policyConfig.maxSpend),
@@ -534,7 +783,7 @@ export function Dashboard({
         setDryRunPreview(null);
         setPaidPocResult(null);
         setNarrative(
-          "MetaMask Advanced Permission approved. SpendGuard stored the grant and the agent can now spend only inside this policy."
+          "MetaMask Advanced Permission 已批准。SpendGuard 已保存授权，agent 只能在该策略范围内支出。"
         );
       } catch (error) {
         setState((current) => ({
@@ -551,7 +800,7 @@ export function Dashboard({
         setNarrative(
           error instanceof Error
             ? error.message
-            : "MetaMask Advanced Permission approval failed."
+            : "MetaMask Advanced Permission 授权失败。"
         );
       }
     });
@@ -560,16 +809,22 @@ export function Dashboard({
   async function blockOverspend() {
     await runExclusive("overBudget", async () => {
       const walletEpoch = walletEpochRef.current;
+      const attemptedAmountAtomic = decimalToAtomic(
+        state.policyConfig.maxSpend + state.policyConfig.pricePerCall
+      );
 
       try {
         setState((current) => ({
           ...current,
           agentAction: "running",
-          payment: "required_402"
+          payment: "none",
+          x402Evidence: projectedX402Evidence({
+            amountAtomic: attemptedAmountAtomic,
+            challengeStatus: "idle",
+            paymentHeaderStatus: "not_applicable",
+            policyConfig: current.policyConfig
+          })
         }));
-        const attemptedAmountAtomic = decimalToAtomic(
-          state.policyConfig.maxSpend + state.policyConfig.pricePerCall
-        );
         const { state: nextState } = await postDashboardAction("/api/agent/precheck", {
           amountAtomic: attemptedAmountAtomic,
           recordBlockedOnly: true
@@ -581,51 +836,81 @@ export function Dashboard({
 
         setState(nextState);
         setNarrative(
-          "Oversized request blocked before payment. SpendGuard recorded the policy violation without submitting a settlement."
+          "超预算请求已在支付前被阻断。SpendGuard 记录了策略违规，没有提交结算。"
         );
       } catch (error) {
         setState((current) => ({
           ...current,
           agentAction: "failed",
-          payment: current.payment === "none" ? "none" : "failed"
+          payment: current.payment === "none" ? "none" : "failed",
+          x402Evidence: {
+            ...current.x402Evidence,
+            challengeStatus: "failed",
+            updatedAt: new Date().toISOString()
+          }
         }));
-        setNarrative(error instanceof Error ? error.message : "Over-budget run failed.");
+        setNarrative(error instanceof Error ? error.message : "超预算测试运行失败。");
       }
     });
   }
 
   async function runAgent() {
-    if (state.policy !== "active" || state.permission !== "approved") return;
+    if (!canUseStoredGrantForPaidCall(state)) return;
 
     await runExclusive("run", async () => {
       const walletEpoch = walletEpochRef.current;
+      const callNumber = successfulPaidCallCount(state) + 1;
 
       try {
         if (!erc7710PaidPocConfig.enabled) {
           setNarrative(
-            "ERC-7710 payment is disabled. Enable the local ERC-7710 payment flag before running the agent."
+            "ERC-7710 支付当前未启用。请先启用本地 ERC-7710 支付开关，再运行 agent。"
           );
           return;
         }
 
         runFailurePhaseRef.current = "precheck";
-        setNarrative("Checking policy budget, scope, expiry, and wallet state.");
+        setNarrative(
+          `正在让 agent 生成第 #${callNumber} 次付费调用的支出决策，并交给 SpendGuard 检查预算、范围和钱包状态。`
+        );
         setState((current) => ({
           ...current,
           agentAction: "prechecking",
           payment: "none",
-          relayer: "not_used"
+          relayer: "not_used",
+          erc7710Proof: buildErc7710ProofFromGrant({
+            grant: current.advancedPermissionGrant,
+            status: "grant_ready"
+          }),
+          x402Evidence: projectedX402Evidence({
+            amountAtomic: erc7710PaidPocConfig.amountAtomic,
+            challengeStatus: "idle",
+            paymentHeaderStatus: "not_applicable",
+            policyConfig: current.policyConfig
+          })
         }));
 
-        await postDashboardAction("/api/agent/precheck", {
+        const { state: precheckedState } = await postDashboardAction("/api/agent/precheck", {
           amountAtomic: erc7710PaidPocConfig.amountAtomic
         });
+        if (!isCurrentWalletEpoch(walletEpoch)) {
+          void resetDemoServer();
+          return;
+        }
+        setState(precheckedState);
 
         runFailurePhaseRef.current = "requesting_402";
         setState((current) => ({
           ...current,
           agentAction: "running",
-          payment: "required_402"
+          payment: "required_402",
+          x402Evidence: projectedX402Evidence({
+            amountAtomic: erc7710PaidPocConfig.amountAtomic,
+            challengeStatus: "received_402",
+            paymentHeaderStatus: "not_submitted",
+            policyConfig: current.policyConfig,
+            source: "unpaid_402"
+          })
         }));
         setNarrative(ERC7710_RUN_STAGE_COPY.requesting_402);
 
@@ -633,7 +918,7 @@ export function Dashboard({
           advancedPermissionGrant: state.advancedPermissionGrant,
           confirmAfterPreflight(preflight) {
             return window.confirm(
-              `Local ERC-7710 settlement preflight passed with ${preflight.simulatedRedeemers.length} facilitator signer(s). Submit the real ${erc7710PaidPocConfig.priceLabel} agent payment now?`
+              `本地 ERC-7710 结算预检通过，检测到 ${preflight.simulatedRedeemers.length} 个 facilitator 签名者。现在提交第 #${callNumber} 次 ${erc7710PaidPocConfig.priceLabel} 付费调用吗？`
             );
           },
           expectedAmountAtomic: erc7710PaidPocConfig.amountAtomic,
@@ -643,9 +928,28 @@ export function Dashboard({
             setState((current) => ({
               ...current,
               agentAction: "running",
-              payment: paymentStateForPaidPocStage(stage)
+              payment: paymentStateForPaidPocStage(stage),
+              x402Evidence: x402EvidenceForStage(
+                current,
+                erc7710PaidPocConfig.amountAtomic,
+                stage
+              )
             }));
             setNarrative(ERC7710_RUN_STAGE_COPY[stage]);
+          },
+          onProof(proof) {
+            setState((current) =>
+              stateWithErc7710Proof(
+                current,
+                proof,
+                proof.settlementPreflight
+                  ? "settlement_preflighted"
+                  : "payload_validated",
+                proof.settlementPreflight
+                  ? "ERC-7710 payload 与已保存授权匹配，并通过本地结算预检。"
+                  : "ERC-7710 payload 在本地验证中与已保存授权匹配。"
+              )
+            );
           },
           walletAddress: state.walletInfo.eoa
         });
@@ -657,18 +961,39 @@ export function Dashboard({
           return;
         }
 
-        setState(nextState);
+        setState(
+          stateWithErc7710Proof(
+            nextState,
+            result.paymentReceipt.erc7710Proof ??
+              nextState.erc7710Proof.payload,
+            "settled",
+            "x402 结算前，客户端本地验证、结算预检和服务端授权检查均已通过。",
+            result.x402.payer
+          )
+        );
         setPaidPocResult(result);
         runFailurePhaseRef.current = null;
+        const paidCalls = successfulPaidCallCount(nextState);
         setNarrative(
-          `ERC-7710 payment settled and ${nextState.policyConfig.service} returned a paid risk brief. Tx ${result.x402.txHash ? shortenAddress(result.x402.txHash) : "pending"} is now in the ledger.`
+          `第 #${paidCalls} 次付费调用已通过 ERC-7710 x402 结算，并复用已保存的 Advanced Permission 授权。已用 ${nextState.policyConfig.spent.toFixed(2)} USDC，剩余 ${remainingBudget(nextState).toFixed(2)} USDC。交易 ${result.x402.txHash ? shortenAddress(result.x402.txHash) : "等待中"} 已写入账本。`
         );
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Agent run failed.";
+        const message = error instanceof Error ? error.message : "Agent 运行失败。";
         setState((current) => ({
           ...current,
           agentAction: "failed",
-          payment: current.payment === "none" ? "none" : "failed"
+          payment: current.payment === "none" ? "none" : "failed",
+          erc7710Proof: buildErc7710ProofFromGrant({
+            grant: current.advancedPermissionGrant,
+            payload: current.erc7710Proof.payload,
+            payer: current.erc7710Proof.payer,
+            status: "failed"
+          }),
+          x402Evidence: {
+            ...current.x402Evidence,
+            challengeStatus: "failed",
+            updatedAt: new Date().toISOString()
+          }
         }));
         setNarrative(runFailureMessage(runFailurePhaseRef.current, message));
         runFailurePhaseRef.current = null;
@@ -682,7 +1007,7 @@ export function Dashboard({
     await runExclusive("dryRun", async () => {
       try {
         setNarrative(
-          "Dry run is fetching the unpaid x402 requirement and building an ERC-7710 delegation preview without submitting payment."
+          "Dry run 正在获取未支付的 x402 要求，并构造 ERC-7710 delegation 预览，不会提交支付。"
         );
         const preview = await dryRunErc7710Payment({
           advancedPermissionGrant: state.advancedPermissionGrant,
@@ -692,13 +1017,25 @@ export function Dashboard({
         });
 
         setDryRunPreview(preview);
+        setState((current) =>
+          stateWithErc7710Proof(
+            {
+              ...current,
+              payment: "required_402",
+              x402Evidence: x402EvidenceForDryRun(current, preview)
+            },
+            preview.payloadProof,
+            "payload_validated",
+            "Dry run 已构造 ERC-7710 x402 payload，并在本地验证其匹配已保存授权；未提交支付。"
+          )
+        );
         setNarrative(
-          `ERC-7710 dry run ready for ${preview.requirement.amountAtomic} atomic ${state.policyConfig.token}. No PAYMENT-SIGNATURE header or paid retry was sent.`
+          `ERC-7710 dry run 已就绪：金额 ${preview.requirement.amountAtomic} atomic ${state.policyConfig.token}。未发送 PAYMENT-SIGNATURE header，也未发起付费重试。`
         );
       } catch (error) {
         setDryRunPreview(null);
         setNarrative(
-          error instanceof Error ? error.message : "ERC-7710 dry run failed."
+          error instanceof Error ? error.message : "ERC-7710 dry run 失败。"
         );
       }
     });
@@ -708,7 +1045,7 @@ export function Dashboard({
     if (!erc7710PaidPocConfig.enabled) return;
 
     const confirmed = window.confirm(
-      `This will spend ${erc7710PaidPocConfig.priceLabel} Base Sepolia USDC through the ERC-7710 x402 paid PoC. Continue?`
+      `这会通过 ERC-7710 x402 付费 PoC 支出 ${erc7710PaidPocConfig.priceLabel} Base Sepolia USDC。继续吗？`
     );
     if (!confirmed) return;
 
@@ -716,13 +1053,49 @@ export function Dashboard({
       const walletEpoch = walletEpochRef.current;
 
       try {
+        paidPocFailurePhaseRef.current = "precheck";
+        setNarrative(
+          `正在让 agent 判断这次 ${erc7710PaidPocConfig.priceLabel} 支出是否值得。`
+        );
+        setState((current) => ({
+          ...current,
+          agentAction: "prechecking",
+          payment: "none",
+          relayer: "not_used",
+          x402Evidence: projectedX402Evidence({
+            amountAtomic: erc7710PaidPocConfig.amountAtomic,
+            challengeStatus: "idle",
+            paymentHeaderStatus: "not_applicable",
+            policyConfig: current.policyConfig
+          })
+        }));
+        const { state: precheckedState } = await postDashboardAction("/api/agent/precheck", {
+          amountAtomic: erc7710PaidPocConfig.amountAtomic
+        });
+        if (!isCurrentWalletEpoch(walletEpoch)) {
+          void resetDemoServer();
+          return;
+        }
+        setState(precheckedState);
+
         paidPocFailurePhaseRef.current = "requesting_402";
         setPaidPocResult(null);
         setState((current) => ({
           ...current,
           agentAction: "running",
           payment: "required_402",
-          relayer: "not_used"
+          relayer: "not_used",
+          erc7710Proof: buildErc7710ProofFromGrant({
+            grant: current.advancedPermissionGrant,
+            status: "grant_ready"
+          }),
+          x402Evidence: projectedX402Evidence({
+            amountAtomic: erc7710PaidPocConfig.amountAtomic,
+            challengeStatus: "received_402",
+            paymentHeaderStatus: "not_submitted",
+            policyConfig: current.policyConfig,
+            source: "unpaid_402"
+          })
         }));
         setNarrative(ERC7710_PAID_POC_STAGE_COPY.requesting_402);
 
@@ -730,7 +1103,7 @@ export function Dashboard({
           advancedPermissionGrant: state.advancedPermissionGrant,
           confirmAfterPreflight(preflight) {
             return window.confirm(
-              `Local ERC-7710 settlement preflight passed with ${preflight.simulatedRedeemers.length} facilitator signer(s). Submit the real ${erc7710PaidPocConfig.priceLabel} settlement now?`
+              `本地 ERC-7710 结算预检通过，检测到 ${preflight.simulatedRedeemers.length} 个 facilitator 签名者。现在提交真实 ${erc7710PaidPocConfig.priceLabel} 结算吗？`
             );
           },
           expectedAmountAtomic: erc7710PaidPocConfig.amountAtomic,
@@ -740,9 +1113,28 @@ export function Dashboard({
             setState((current) => ({
               ...current,
               agentAction: "running",
-              payment: paymentStateForPaidPocStage(stage)
+              payment: paymentStateForPaidPocStage(stage),
+              x402Evidence: x402EvidenceForStage(
+                current,
+                erc7710PaidPocConfig.amountAtomic,
+                stage
+              )
             }));
             setNarrative(ERC7710_PAID_POC_STAGE_COPY[stage]);
+          },
+          onProof(proof) {
+            setState((current) =>
+              stateWithErc7710Proof(
+                current,
+                proof,
+                proof.settlementPreflight
+                  ? "settlement_preflighted"
+                  : "payload_validated",
+                proof.settlementPreflight
+                  ? "ERC-7710 payload 与已保存授权匹配，并通过本地结算预检。"
+                  : "ERC-7710 payload 在本地验证中与已保存授权匹配。"
+              )
+            );
           },
           walletAddress: state.walletInfo.eoa
         });
@@ -754,21 +1146,41 @@ export function Dashboard({
           return;
         }
 
-        setState(nextState);
+        setState(
+          stateWithErc7710Proof(
+            nextState,
+            result.paymentReceipt.erc7710Proof ??
+              nextState.erc7710Proof.payload,
+            "settled",
+            "x402 结算前，客户端本地验证、结算预检和服务端授权检查均已通过。",
+            result.x402.payer
+          )
+        );
         setPaidPocResult(result);
         paidPocFailurePhaseRef.current = null;
         setNarrative(
-          `ERC-7710 paid PoC settled for ${erc7710PaidPocConfig.priceLabel}. Ledger payer ${shortenAddress(
+          `ERC-7710 付费 PoC 已完成 ${erc7710PaidPocConfig.priceLabel} 结算。账本付款人 ${shortenAddress(
             result.x402.payer
-          )}, tx ${result.x402.txHash ? shortenAddress(result.x402.txHash) : "pending"}.`
+          )}，交易 ${result.x402.txHash ? shortenAddress(result.x402.txHash) : "等待中"}。`
         );
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "ERC-7710 paid PoC failed.";
+          error instanceof Error ? error.message : "ERC-7710 付费 PoC 失败。";
         setState((current) => ({
           ...current,
           agentAction: "failed",
-          payment: current.payment === "none" ? "none" : "failed"
+          payment: current.payment === "none" ? "none" : "failed",
+          erc7710Proof: buildErc7710ProofFromGrant({
+            grant: current.advancedPermissionGrant,
+            payload: current.erc7710Proof.payload,
+            payer: current.erc7710Proof.payer,
+            status: "failed"
+          }),
+          x402Evidence: {
+            ...current.x402Evidence,
+            challengeStatus: "failed",
+            updatedAt: new Date().toISOString()
+          }
         }));
         setNarrative(paidPocFailureMessage(paidPocFailurePhaseRef.current, message));
         paidPocFailurePhaseRef.current = null;
@@ -783,7 +1195,7 @@ export function Dashboard({
       try {
         if (!state.advancedPermissionGrant) {
           setNarrative(
-            "No MetaMask Advanced Permission grant is stored for this session. Reset and approve a real grant before syncing revoke."
+            "当前会话没有保存 MetaMask Advanced Permission 授权。请先重置并批准真实授权，再同步撤销。"
           );
           return;
         }
@@ -792,15 +1204,15 @@ export function Dashboard({
           ...current,
           revocation: "revoking"
         }));
-        setNarrative("Opening MetaMask to revoke the Advanced Permission.");
+        setNarrative("正在打开 MetaMask 撤销 Advanced Permission。");
         const revokeResult = await revokeAdvancedSpendPermission(
           state.advancedPermissionGrant,
           {
             onStage(stage) {
               setNarrative(
                 stage === "requesting_wallet_revoke"
-                  ? "Opening MetaMask to revoke the Advanced Permission."
-                  : "Checking MetaMask granted permissions after the revoke attempt."
+                  ? "正在打开 MetaMask 撤销 Advanced Permission。"
+                  : "撤销尝试后正在检查 MetaMask 已授权权限。"
               );
             }
           }
@@ -814,23 +1226,23 @@ export function Dashboard({
           }));
           if (revokeResult.directRevokeStatus === "not_supported") {
             setNarrative(
-              "This MetaMask build does not support dapp-triggered Advanced Permission revoke. Revoke it in MetaMask Dapp connections, then click Revoke again to sync. No local revoke was recorded."
+              "当前 MetaMask 版本不支持 dapp 触发 Advanced Permission 撤销。请在 MetaMask Dapp 连接中手动撤销，然后再次点击撤销同步。本地未记录撤销。"
             );
           } else if (revokeResult.directRevokeStatus === "rejected") {
             setNarrative(
-              "Direct revoke was cancelled in MetaMask. The grant is still active, and no local revoke was recorded."
+              "你在 MetaMask 中取消了直接撤销。授权仍然活跃，本地未记录撤销。"
             );
           } else if (revokeResult.directRevokeStatus === "failed") {
             setNarrative(
-              `Direct revoke failed${
+              `直接撤销失败${
                 revokeResult.directRevokeMessage
-                  ? `: ${revokeResult.directRevokeMessage}`
-                  : "."
-              } MetaMask still reports the grant as active, so no local revoke was recorded.`
+                  ? `：${revokeResult.directRevokeMessage}`
+                  : "。"
+              }MetaMask 仍报告该授权为活跃，因此本地未记录撤销。`
             );
           } else {
             setNarrative(
-              "MetaMask still reports this Advanced Permission as active after the revoke attempt. No local revoke was recorded."
+              "撤销尝试后 MetaMask 仍报告该 Advanced Permission 为活跃。本地未记录撤销。"
             );
           }
           return;
@@ -854,10 +1266,10 @@ export function Dashboard({
         setPaidPocResult(null);
         setNarrative(
           revokeResult.status === "expired"
-            ? "MetaMask grant is expired. The local policy is now closed and the agent cannot spend."
+            ? "MetaMask 授权已过期。本地策略已关闭，agent 不能继续支出。"
             : revokeResult.directRevokeStatus === "submitted"
-              ? "MetaMask direct revoke was confirmed by wallet sync. The local policy is now closed and the agent cannot spend."
-              : "MetaMask no longer reports this grant. The local policy is now closed and the agent cannot spend."
+              ? "钱包同步确认 MetaMask 直接撤销已完成。本地策略已关闭，agent 不能继续支出。"
+              : "MetaMask 已不再报告该授权。本地策略已关闭，agent 不能继续支出。"
         );
       } catch (error) {
         setState((current) => ({
@@ -867,7 +1279,7 @@ export function Dashboard({
         setNarrative(
           error instanceof Error
             ? error.message
-            : "MetaMask permission sync failed before local revoke."
+            : "本地撤销前 MetaMask 权限同步失败。"
         );
       }
     });
@@ -885,19 +1297,19 @@ export function Dashboard({
         setState(createInitialState());
         setDryRunPreview(null);
         setPaidPocResult(null);
-        setNarrative(error instanceof Error ? error.message : "Demo reset failed.");
+        setNarrative(error instanceof Error ? error.message : "演示重置失败。");
       }
     });
   }
 
   return (
     <main className="app-shell">
-      <header className="topbar" aria-label="SpendGuard dashboard header">
+      <header className="topbar" aria-label="SpendGuard 控制台头部">
         <div>
           <p className="eyebrow">Agent SpendGuard</p>
-          <h1>Scoped onchain budget for one AI agent</h1>
+          <h1>面向单个 AI agent 的链上范围预算</h1>
         </div>
-        <div className="status-cluster" aria-label="Current state summary">
+        <div className="status-cluster" aria-label="当前状态摘要">
           <StatusBadge prefix="Wallet" value={state.wallet} variant="pill" />
           <StatusBadge prefix="Policy" value={state.policy} variant="pill" />
           <StatusBadge prefix="Permission" value={state.permission} variant="pill" />
@@ -922,11 +1334,12 @@ export function Dashboard({
         state={state}
       />
 
-      <section className="dashboard-grid" aria-label="SpendGuard dashboard">
+      <section className="dashboard-grid" aria-label="SpendGuard 控制台">
         <WalletPanel state={state} />
         <PolicyCard remainingBudget={remaining} state={state} />
         <PermissionPreview state={state} />
         <AgentControls state={state} />
+        <AgentDecisionPanel state={state} />
         <PaymentRail state={state} />
         <RelayerTimeline state={state} />
         <VeniceResult state={state} />

@@ -5,7 +5,12 @@ import {
   precheckPolicyGuard,
   type RunnerPaymentRequirement
 } from "@/server/agent-runner/policyGuard";
-import { isAgentRunnerError } from "@/server/agent-runner/errors";
+import { AgentRunnerError, isAgentRunnerError } from "@/server/agent-runner/errors";
+import { agentDecisionAllowsPayment } from "@/server/agent-runner/agentSpendDecision";
+import {
+  clearCurrentAgentSpendDecision,
+  getCurrentAgentSpendDecision
+} from "@/server/agent-runner/agentSpendDecisionStore";
 import { runRealDeepSeek } from "@/server/adapters/deepseekAdapter";
 import type { RunAiRiskBriefInput } from "@/server/agent-runner/runAgentWithPermission";
 import { spendguardConfig } from "@/server/config/spendguard";
@@ -18,6 +23,7 @@ import {
 } from "@/server/x402/resourceServer";
 import { setDemoPhase } from "@/app/api/_lib/demoState";
 import type {
+  AgentSpendDecision,
   AiRiskBrief,
   PaymentReceipt,
   PermissionRecord,
@@ -32,6 +38,7 @@ type RiskBriefRequestBody = {
 };
 
 type PaidRiskBriefData = {
+  agentDecision: AgentSpendDecision;
   brief: AiRiskBrief;
   paymentReceipt: PaymentReceipt;
   paymentRequirement: RunnerPaymentRequirement;
@@ -45,6 +52,39 @@ type PaidRiskBriefData = {
     txHash: string | null;
   };
 };
+
+function assertAllowedAgentDecision(amountAtomic: string): AgentSpendDecision {
+  const agentDecision = getCurrentAgentSpendDecision();
+
+  if (!agentDecision || !agentDecisionAllowsPayment(agentDecision)) {
+    throw new AgentRunnerError(
+      "AGENT_DECISION_BLOCKED",
+      "No SpendGuard-approved AI spending decision was recorded before submitting the paid request.",
+      {
+        blocked: true,
+        details: {
+          agentDecision
+        }
+      }
+    );
+  }
+
+  if (agentDecision.estimatedCostAtomic !== amountAtomic) {
+    throw new AgentRunnerError(
+      "AGENT_DECISION_BLOCKED",
+      "AI spending decision amount does not match the x402 payment amount.",
+      {
+        blocked: true,
+        details: {
+          agentDecisionAmountAtomic: agentDecision.estimatedCostAtomic,
+          x402AmountAtomic: amountAtomic
+        }
+      }
+    );
+  }
+
+  return agentDecision;
+}
 
 function isAddressLike(value: unknown): value is string {
   return typeof value === "string" && /^0x[a-fA-F0-9]{40}$/.test(value);
@@ -198,6 +238,7 @@ async function recordSettledSpend({
     });
     appendLedgerEntry({
       amountAtomic,
+      agentDecision: data.agentDecision,
       endpoint: data.paymentRequirement.endpoint,
       occurredAt: paidAt,
       paymentReceipt,
@@ -211,6 +252,7 @@ async function recordSettledSpend({
       tokenDecimals: data.paymentRequirement.tokenDecimals,
       veniceRiskBrief: data.brief
     });
+    clearCurrentAgentSpendDecision();
     setDemoPhase("run_completed");
   } catch (error) {
     console.warn("x402 payment settled, but demo ledger recording failed.", error);
@@ -252,11 +294,15 @@ export async function POST(request: NextRequest) {
           permissionRecord: permission,
           policyId: spendguardConfig.policy.id
         });
+        const agentDecision = assertAllowedAgentDecision(
+          context.paymentRequirements.amount
+        );
 
         const runnerInput = buildRunnerInput(body, context, permission);
         const brief = await runRealDeepSeek(runnerInput);
 
         return {
+          agentDecision,
           brief,
           paymentReceipt: runnerInput.paymentReceipt,
           paymentRequirement: runnerInput.paymentRequirement,

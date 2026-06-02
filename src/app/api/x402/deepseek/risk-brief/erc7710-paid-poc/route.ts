@@ -8,10 +8,19 @@ import {
   type RunnerPaymentRequirement
 } from "@/server/agent-runner/policyGuard";
 import { AgentRunnerError, isAgentRunnerError } from "@/server/agent-runner/errors";
+import { agentDecisionAllowsPayment } from "@/server/agent-runner/agentSpendDecision";
+import {
+  clearCurrentAgentSpendDecision,
+  getCurrentAgentSpendDecision
+} from "@/server/agent-runner/agentSpendDecisionStore";
 import { runRealDeepSeek } from "@/server/adapters/deepseekAdapter";
 import type { RunAiRiskBriefInput } from "@/server/agent-runner/runAgentWithPermission";
 import { spendguardConfig } from "@/server/config/spendguard";
-import { appendLedgerEntry } from "@/server/ledger/store";
+import {
+  appendLedgerEntry,
+  findSettledLedgerEntry,
+  listLedgerEntries
+} from "@/server/ledger/store";
 import { getPermissionRecord, updatePermissionSpend } from "@/server/permissions/store";
 import {
   erc7710PaidPocDisabledResponse,
@@ -20,13 +29,20 @@ import {
   type Erc7710PaidPocVerifiedPaymentContext
 } from "@/server/x402/erc7710PaidPocResourceServer";
 import { setDemoPhase } from "@/app/api/_lib/demoState";
+import { BASE_SEPOLIA_PUBLIC_RPC_URL } from "@/shared/chain";
 import type {
+  AgentSpendDecision,
   AiRiskBrief,
+  Erc7710PayloadProof,
+  OneShotPaymentTimeline,
   PaymentReceipt,
   PermissionRecord,
   WalletInfo
 } from "@/shared/types";
-import { BASE_SEPOLIA_PUBLIC_RPC_URL } from "@/shared/chain";
+import {
+  buildErc7710PayloadProof,
+  validateErc7710RequiredChildCaveats
+} from "@/shared/x402/erc7710DelegationInspector";
 
 export const dynamic = "force-dynamic";
 export const runtime = "nodejs";
@@ -36,6 +52,7 @@ type RiskBriefRequestBody = {
 };
 
 type PaidErc7710PocData = {
+  agentDecision: AgentSpendDecision;
   brief: AiRiskBrief;
   paymentReceipt: PaymentReceipt;
   paymentRequirement: RunnerPaymentRequirement;
@@ -62,6 +79,11 @@ function isAddressLike(value: unknown): value is string {
 
 function lowerHex(value: string | null | undefined) {
   return value ? value.toLowerCase() : null;
+}
+
+function stringArray(value: unknown) {
+  if (!Array.isArray(value)) return [];
+  return value.filter((item): item is string => typeof item === "string");
 }
 
 function errorMessage(error: unknown) {
@@ -118,7 +140,7 @@ function extractDelegationManager(paymentPayload: PaymentPayload): string | null
   return isAddressLike(delegationManager) ? delegationManager : null;
 }
 
-function permissionContextNonce(paymentPayload: PaymentPayload): string | null {
+function extractPermissionContext(paymentPayload: PaymentPayload): string | null {
   const payload = asRecord(paymentPayload.payload);
   const permissionContext = payload?.permissionContext;
 
@@ -126,7 +148,7 @@ function permissionContextNonce(paymentPayload: PaymentPayload): string | null {
     return null;
   }
 
-  return permissionContext.slice(2, 14);
+  return permissionContext;
 }
 
 function assertErc7710RequirementMatchesPocConfig(
@@ -160,6 +182,52 @@ function assertErc7710RequirementMatchesPocConfig(
       mismatches
     });
   }
+}
+
+function assertAllowedAgentDecision(amountAtomic: string): AgentSpendDecision {
+  const agentDecision = getCurrentAgentSpendDecision();
+
+  if (!agentDecision) {
+    throw new AgentRunnerError(
+      "AGENT_DECISION_BLOCKED",
+      "No AI spending decision was recorded before submitting the paid request.",
+      {
+        blocked: true,
+        details: {
+          amountAtomic
+        }
+      }
+    );
+  }
+
+  if (!agentDecisionAllowsPayment(agentDecision)) {
+    throw new AgentRunnerError(
+      "AGENT_DECISION_BLOCKED",
+      "AI spending decision did not pass SpendGuard enforcement.",
+      {
+        blocked: true,
+        details: {
+          agentDecision
+        }
+      }
+    );
+  }
+
+  if (agentDecision.estimatedCostAtomic !== amountAtomic) {
+    throw new AgentRunnerError(
+      "AGENT_DECISION_BLOCKED",
+      "AI spending decision amount does not match the x402 payment amount.",
+      {
+        blocked: true,
+        details: {
+          agentDecisionAmountAtomic: agentDecision.estimatedCostAtomic,
+          x402AmountAtomic: amountAtomic
+        }
+      }
+    );
+  }
+
+  return agentDecision;
 }
 
 function assertErc7710PayloadMatchesGrant(
@@ -201,11 +269,59 @@ function assertErc7710PayloadMatchesGrant(
       }
     );
   }
+  const payloadProof = buildErc7710PayloadProof({
+    localPayloadMatchesGrant: null,
+    permissionContext: extractPermissionContext(paymentPayload),
+    redeemerConstraint: null,
+    serverPayloadMatchesGrant: true,
+    settlementPreflight: null,
+    validationSource: "server_verified"
+  });
+
+  if (!payloadProof.permissionContextHash || !payloadProof.childDelegationTarget) {
+    throw blockedError("ERC-7710 payload permission context is missing or undecodable", {
+      childDelegationTarget: payloadProof.childDelegationTarget,
+      delegationCount: payloadProof.delegationCount,
+      permissionContextHash: payloadProof.permissionContextHash
+    });
+  }
 
   return {
     delegator,
-    delegationManager
+    delegationManager,
+    payloadProof
   };
+}
+
+function assertFreshErc7710PaymentPayload(payloadProof: Erc7710PayloadProof) {
+  const payloadHash = payloadProof.permissionContextHash;
+
+  if (!payloadHash) {
+    throw blockedError("ERC-7710 payload permission context hash is missing", {
+      permissionContextHash: null
+    });
+  }
+
+  const duplicateEntry = listLedgerEntries().find((entry) => {
+    if (entry.status !== "success" && entry.status !== "paid_ai_failed") {
+      return false;
+    }
+
+    return (
+      entry.paymentReceipt?.erc7710Proof?.permissionContextHash?.toLowerCase() ===
+      payloadHash.toLowerCase()
+    );
+  });
+
+  if (duplicateEntry) {
+    throw blockedError(
+      "ERC-7710 payment payload was already recorded. Build a fresh child delegation for the next paid call.",
+      {
+        duplicateLedgerEntryId: duplicateEntry.id,
+        payloadContextHash: payloadHash
+      }
+    );
+  }
 }
 
 async function assertDelegatorExecutableForSettlement(
@@ -232,11 +348,11 @@ async function assertDelegatorExecutableForSettlement(
 }
 
 function x402RequirementId(
-  paymentPayload: PaymentPayload,
-  paymentRequirements: PaymentRequirements
+  paymentRequirements: PaymentRequirements,
+  payloadProof: Erc7710PayloadProof
 ) {
-  const nonce = permissionContextNonce(paymentPayload);
-  if (nonce) return `x402-erc7710-${nonce}`;
+  const payloadHash = payloadProof.permissionContextHash;
+  if (payloadHash) return `x402-erc7710-${payloadHash.slice(2, 18)}`;
 
   return `x402-erc7710-${paymentRequirements.network}-${Date.now()}`;
 }
@@ -266,12 +382,13 @@ function buildRunnerInput(
   body: RiskBriefRequestBody,
   context: Erc7710PaidPocVerifiedPaymentContext,
   permission: PermissionRecord,
-  delegator: string
+  delegator: string,
+  payloadProof: Erc7710PayloadProof
 ): RunAiRiskBriefInput {
   const now = new Date().toISOString();
   const requirementId = x402RequirementId(
-    context.paymentPayload,
-    context.paymentRequirements
+    context.paymentRequirements,
+    payloadProof
   );
   const wallet = buildWalletInfo(body, delegator);
   const activePermission: PermissionRecord = {
@@ -285,6 +402,11 @@ function buildRunnerInput(
     endpoint: spendguardConfig.erc7710PaidPoc.path,
     method: spendguardConfig.endpoint.method,
     amountAtomic: context.paymentRequirements.amount,
+    asset: context.paymentRequirements.asset,
+    assetTransferMethod:
+      context.paymentRequirements.extra?.assetTransferMethod === "erc7710"
+        ? "erc7710"
+        : String(context.paymentRequirements.extra?.assetTransferMethod ?? "unknown"),
     token: spendguardConfig.token.symbol,
     tokenDecimals: spendguardConfig.token.decimals,
     chainId: spendguardConfig.chain.id,
@@ -293,6 +415,9 @@ function buildRunnerInput(
     status: "required",
     createdAt: now,
     expiresAt: expiresAtIso(context.paymentRequirements),
+    maxTimeoutSeconds: context.paymentRequirements.maxTimeoutSeconds,
+    network: context.paymentRequirements.network,
+    scheme: context.paymentRequirements.scheme,
     facilitator: spendguardConfig.erc7710PaidPoc.selfSettle.enabled
       ? `self:${spendguardConfig.erc7710PaidPoc.selfSettle.facilitatorAddress ?? "unconfigured"}`
       : spendguardConfig.x402FacilitatorUrl ?? "https://x402.org/facilitator",
@@ -308,7 +433,8 @@ function buildRunnerInput(
     payer: delegator,
     payTo: context.paymentRequirements.payTo,
     txHash: null,
-    paidAt: now
+    paidAt: now,
+    erc7710Proof: payloadProof
   };
 
   return {
@@ -317,6 +443,139 @@ function buildRunnerInput(
     paymentRequirement,
     permission: activePermission,
     policyId: spendguardConfig.policy.id
+  };
+}
+
+function settlementRedeemerTargets(
+  paymentPayload: PaymentPayload,
+  paymentRequirements: PaymentRequirements
+) {
+  const acceptedExtra = asRecord(paymentPayload.accepted.extra);
+  const requirementExtra = asRecord(paymentRequirements.extra);
+  const acceptedTargets = stringArray(acceptedExtra?.facilitatorAddresses);
+  const requirementTargets = stringArray(requirementExtra?.facilitatorAddresses);
+
+  if (acceptedTargets.length > 0) return acceptedTargets;
+  if (requirementTargets.length > 0) return requirementTargets;
+
+  return spendguardConfig.erc7710PaidPoc.facilitatorAddresses;
+}
+
+function assertErc7710PayloadHasRequiredChildCaveats({
+  paymentPayload,
+  paymentRequirements,
+  payloadProof,
+  permission
+}: {
+  paymentPayload: PaymentPayload;
+  paymentRequirements: PaymentRequirements;
+  payloadProof: Erc7710PayloadProof;
+  permission: PermissionRecord;
+}) {
+  const validation = validateErc7710RequiredChildCaveats({
+    expectedAllowedTargets: [paymentRequirements.asset],
+    expectedChildDelegationTargets: settlementRedeemerTargets(
+      paymentPayload,
+      paymentRequirements
+    ),
+    expectedMaxTransferAmountAtomic:
+      permission.advancedPermissionGrant?.periodAmountAtomic ??
+      permission.maxSpendAtomic,
+    expectedMinTransferAmountAtomic: paymentRequirements.amount,
+    expectedTokenAddress: paymentRequirements.asset,
+    maxLimitedCalls: 2,
+    maxTimeoutSeconds: paymentRequirements.maxTimeoutSeconds,
+    payloadProof
+  });
+
+  if (!validation.ok) {
+    throw blockedError(
+      "ERC-7710 child delegation is missing required caveat protections",
+      {
+        childDelegationTarget: payloadProof.childDelegationTarget,
+        caveatCount: validation.details.caveatCount,
+        missingCaveats: validation.missing,
+        mismatchedCaveats: validation.mismatches,
+        permissionContextHash: payloadProof.permissionContextHash,
+        required: {
+          allowedTargets: validation.details.expectedAllowedTargets,
+          childDelegationTargets:
+            validation.details.expectedChildDelegationTargets,
+          erc20TransferAmount: {
+            maxAmountAtomic:
+              validation.details.expectedMaxTransferAmountAtomic,
+            minAmountAtomic:
+              validation.details.expectedMinTransferAmountAtomic,
+            tokenAddress: validation.details.expectedTokenAddress
+          },
+          limitedCallsMax: 2,
+          methodSelectors: validation.details.expectedMethodSelectors
+        },
+        seen: {
+          allowedMethods: validation.details.allowedMethods,
+          allowedTargets: validation.details.allowedTargets,
+          erc20TransferAmount: validation.details.amountCap,
+          limitedCalls: validation.details.limitedCalls,
+          timestamp: validation.details.timestamp
+        }
+      }
+    );
+  }
+}
+
+function oneShotTimelineFromSettlement(
+  settlement: Erc7710PaidPocSettledPaymentContext<PaidErc7710PocData>["settlement"]
+): OneShotPaymentTimeline | undefined {
+  const extra = asRecord(settlement.extra);
+  const oneShot = asRecord(extra?.oneShot);
+
+  if (!oneShot) return undefined;
+
+  const quoteId = typeof oneShot.quoteId === "string" ? oneShot.quoteId : null;
+  const taskId = typeof oneShot.taskId === "string" ? oneShot.taskId : null;
+  const status =
+    oneShot.status === "submitted" ||
+    oneShot.status === "pending" ||
+    oneShot.status === "confirmed" ||
+    oneShot.status === "failed"
+      ? oneShot.status
+      : null;
+
+  if (!quoteId || !taskId || !status) return undefined;
+
+  const estimate = asRecord(oneShot.estimate) ?? asRecord(extra?.estimate);
+  const requiredPaymentAmount =
+    typeof estimate?.requiredPaymentAmount === "string"
+      ? estimate.requiredPaymentAmount
+      : null;
+  const relayerFeeAmount =
+    typeof estimate?.relayerFeeAmount === "string"
+      ? estimate.relayerFeeAmount
+      : null;
+  const feeAtomic = requiredPaymentAmount ?? relayerFeeAmount;
+  const feeCollector =
+    typeof estimate?.relayerFeeCollector === "string"
+      ? estimate.relayerFeeCollector
+      : null;
+  const settledAmount =
+    typeof settlement.amount === "string" ? settlement.amount : null;
+  const totalWalletDebitAtomic =
+    feeAtomic && settledAmount && /^\d+$/.test(feeAtomic) && /^\d+$/.test(settledAmount)
+      ? (BigInt(settledAmount) + BigInt(feeAtomic)).toString()
+      : null;
+  const fee = feeAtomic
+    ? `${feeAtomic} atomic ${spendguardConfig.token.symbol}`
+    : "1Shot estimate accepted";
+
+  return {
+    feeAtomic,
+    feeCollector,
+    quoteId,
+    fee,
+    taskId,
+    status,
+    totalWalletDebitAtomic,
+    txHash: typeof oneShot.txHash === "string" ? oneShot.txHash : ""
   };
 }
 
@@ -335,6 +594,7 @@ async function recordSettledSpend({
   const paymentReceipt: PaymentReceipt = {
     ...data.paymentReceipt,
     amountAtomic,
+    oneShot: oneShotTimelineFromSettlement(settlement),
     paidAt,
     txHash: settlement.transaction || null
   };
@@ -344,27 +604,37 @@ async function recordSettledSpend({
   data.x402.payer = paymentReceipt.payer;
   data.x402.txHash = paymentReceipt.txHash;
 
+  const ledgerInput = {
+    amountAtomic,
+    agentDecision: data.agentDecision,
+    endpoint: data.paymentRequirement.endpoint,
+    occurredAt: paidAt,
+    paymentReceipt,
+    paymentRequirement: data.paymentRequirement,
+    permissionId: permission.id,
+    policyId: permission.policyId,
+    service: permission.service,
+    serviceId: permission.serviceId,
+    status: "success" as const,
+    token: paymentReceipt.token,
+    tokenDecimals: data.paymentRequirement.tokenDecimals,
+    veniceRiskBrief: data.brief
+  };
+
+  if (findSettledLedgerEntry(ledgerInput)) {
+    clearCurrentAgentSpendDecision();
+    setDemoPhase("run_completed");
+    return;
+  }
+
   try {
     updatePermissionSpend({
       amountAtomic,
       permissionId: permission.id,
       spentAt: paidAt
     });
-    appendLedgerEntry({
-      amountAtomic,
-      endpoint: data.paymentRequirement.endpoint,
-      occurredAt: paidAt,
-      paymentReceipt,
-      paymentRequirement: data.paymentRequirement,
-      permissionId: permission.id,
-      policyId: permission.policyId,
-      service: permission.service,
-      serviceId: permission.serviceId,
-      status: "success",
-      token: paymentReceipt.token,
-      tokenDecimals: data.paymentRequirement.tokenDecimals,
-      veniceRiskBrief: data.brief
-    });
+    appendLedgerEntry(ledgerInput);
+    clearCurrentAgentSpendDecision();
     setDemoPhase("run_completed");
   } catch (error) {
     console.warn("ERC-7710 x402 payment settled, but ledger recording failed.", error);
@@ -409,6 +679,13 @@ export async function POST(request: NextRequest) {
           context.paymentPayload,
           permission
         );
+        assertErc7710PayloadHasRequiredChildCaveats({
+          paymentPayload: context.paymentPayload,
+          paymentRequirements: context.paymentRequirements,
+          payloadProof: payloadAddresses.payloadProof,
+          permission
+        });
+        assertFreshErc7710PaymentPayload(payloadAddresses.payloadProof);
         await assertDelegatorExecutableForSettlement(
           payloadAddresses.delegator,
           permission
@@ -420,16 +697,21 @@ export async function POST(request: NextRequest) {
           permissionRecord: permission,
           policyId: spendguardConfig.policy.id
         });
+        const agentDecision = assertAllowedAgentDecision(
+          context.paymentRequirements.amount
+        );
 
         const runnerInput = buildRunnerInput(
           body,
           context,
           permission,
-          payloadAddresses.delegator
+          payloadAddresses.delegator,
+          payloadAddresses.payloadProof
         );
         const brief = await runRealDeepSeek(runnerInput);
 
         return {
+          agentDecision,
           brief,
           paymentReceipt: runnerInput.paymentReceipt,
           paymentRequirement: runnerInput.paymentRequirement,

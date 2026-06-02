@@ -14,7 +14,8 @@ import {
   BASE_SEPOLIA_CHAIN_ID,
   BASE_SEPOLIA_USDC
 } from "@/shared/chain";
-import type { AdvancedPermissionGrant } from "@/shared/types";
+import type { AdvancedPermissionGrant, Erc7710PayloadProof } from "@/shared/types";
+import { buildErc7710PayloadProof } from "@/shared/x402/erc7710DelegationInspector";
 import { getStoredAdvancedPermissionSessionAccount } from "@/client/permissions/metamaskAdvancedPermissions";
 
 type X402Network = `eip155:${number}`;
@@ -64,13 +65,17 @@ export type Erc7710DryRunPreview = {
     accepted: SanitizedRequirement;
     delegationManager: string;
     delegator: string;
+    childDelegationTarget: string | null;
+    delegationCount: number | null;
     permissionContextHash: string;
     permissionContextBytes: number;
   };
+  payloadProof: Erc7710PayloadProof;
   safeguards: {
     fetched402Only: true;
     paidRequestSubmitted: false;
     paymentSignatureHeaderSubmitted: false;
+    payloadValidatedAgainstGrant: true;
     walletRequestExecutionPermissionsCalled: false;
     ethSendTransactionCalled: false;
     rawPermissionContextReturned: false;
@@ -93,7 +98,7 @@ function lowerHex(value: string | null | undefined) {
 
 function assertAddress(value: string, label: string): Hex {
   if (!isAddress(value)) {
-    throw new Erc7710DryRunError(`${label} is not a valid EVM address.`);
+    throw new Erc7710DryRunError(`${label} 不是有效的 EVM 地址。`);
   }
 
   return getAddress(value) as Hex;
@@ -101,7 +106,7 @@ function assertAddress(value: string, label: string): Hex {
 
 function assertHex(value: string, label: string): Hex {
   if (!isHex(value) || value === "0x") {
-    throw new Erc7710DryRunError(`${label} is not valid non-empty hex data.`);
+    throw new Erc7710DryRunError(`${label} 不是有效的非空 hex 数据。`);
   }
 
   return value as Hex;
@@ -112,44 +117,44 @@ function assertActiveGrant(
 ): ActiveAdvancedPermissionGrant {
   if (!grant) {
     throw new Erc7710DryRunError(
-      "No stored MetaMask Advanced Permission grant is available for the dry run."
+      "当前没有可用于 dry run 的 MetaMask Advanced Permission 授权。"
     );
   }
 
   if (grant.source !== "metamask-erc7715") {
-    throw new Erc7710DryRunError("Stored permission is not a MetaMask ERC-7715 grant.");
+    throw new Erc7710DryRunError("已保存权限不是 MetaMask ERC-7715 授权。");
   }
 
   if (grant.status !== "granted" || grant.expiry <= Math.floor(Date.now() / 1000)) {
     throw new Erc7710DryRunError(
-      "Stored MetaMask Advanced Permission grant is expired or revoked."
+      "已保存的 MetaMask Advanced Permission 授权已过期或已撤销。"
     );
   }
 
   if (grant.chainId !== BASE_SEPOLIA_CHAIN_ID) {
-    throw new Erc7710DryRunError("Stored grant is not scoped to Base Sepolia.");
+    throw new Erc7710DryRunError("已保存授权未限定到 Base Sepolia。");
   }
 
   if (!grant.from) {
     throw new Erc7710DryRunError(
-      "Stored grant does not include the delegator address needed for ERC-7710 x402."
+      "已保存授权缺少 ERC-7710 x402 所需的 delegator 地址。"
     );
   }
 
-  assertAddress(grant.from, "Grant delegator");
-  assertAddress(grant.to, "Grant redeemer");
-  assertAddress(grant.sessionAccount, "Stored session account");
-  assertAddress(grant.delegationManager, "Grant delegation manager");
-  assertHex(grant.context, "Grant permission context");
+  assertAddress(grant.from, "授权 delegator");
+  assertAddress(grant.to, "授权 redeemer");
+  assertAddress(grant.sessionAccount, "已保存会话账户");
+  assertAddress(grant.delegationManager, "授权 delegation manager");
+  assertHex(grant.context, "授权 permission context");
 
   if (lowerHex(grant.to) !== lowerHex(grant.sessionAccount)) {
     throw new Erc7710DryRunError(
-      "Stored grant redeemer does not match the local session account."
+      "已保存授权的 redeemer 与本地会话账户不匹配。"
     );
   }
 
   if (lowerHex(grant.tokenAddress) !== lowerHex(BASE_SEPOLIA_USDC.address)) {
-    throw new Erc7710DryRunError("Stored grant is not scoped to Base Sepolia USDC.");
+    throw new Erc7710DryRunError("已保存授权未限定到 Base Sepolia USDC。");
   }
 
   return grant as ActiveAdvancedPermissionGrant;
@@ -195,7 +200,7 @@ function selectedRequirementFromPayload(paymentPayload: PaymentPayload) {
 
   if (requirement.extra?.assetTransferMethod !== "erc7710") {
     throw new Erc7710DryRunError(
-      "The selected x402 requirement did not request ERC-7710 payment."
+      "选中的 x402 requirement 没有请求 ERC-7710 支付。"
     );
   }
 
@@ -206,11 +211,11 @@ function permissionContextFromPayload(paymentPayload: PaymentPayload) {
   const permissionContext = paymentPayload.payload.permissionContext;
   if (typeof permissionContext !== "string") {
     throw new Erc7710DryRunError(
-      "The ERC-7710 x402 payload did not include a permission context."
+      "ERC-7710 x402 payload 未包含 permission context。"
     );
   }
 
-  return assertHex(permissionContext, "Generated permission context");
+  return assertHex(permissionContext, "生成的 permission context");
 }
 
 function addressFromPayload(
@@ -221,7 +226,7 @@ function addressFromPayload(
   const value = paymentPayload.payload[field];
 
   if (typeof value !== "string") {
-    throw new Erc7710DryRunError(`The ERC-7710 x402 payload did not include ${label}.`);
+    throw new Erc7710DryRunError(`ERC-7710 x402 payload 未包含 ${label}。`);
   }
 
   return assertAddress(value, label);
@@ -240,13 +245,13 @@ function assertPayloadMatchesGrant(
 
   if (lowerHex(delegationManager) !== lowerHex(grant.delegationManager)) {
     throw new Erc7710DryRunError(
-      "Generated ERC-7710 x402 payload delegation manager does not match the MetaMask grant."
+      "生成的 ERC-7710 x402 payload delegation manager 与 MetaMask 授权不匹配。"
     );
   }
 
   if (lowerHex(delegator) !== lowerHex(grant.from)) {
     throw new Erc7710DryRunError(
-      "Generated ERC-7710 x402 payload delegator does not match the MetaMask grant."
+      "生成的 ERC-7710 x402 payload delegator 与 MetaMask 授权不匹配。"
     );
   }
 
@@ -265,16 +270,16 @@ function createDryRunHttpClient(input: {
 
   if (lowerHex(sessionAccount.address) !== lowerHex(input.grant.sessionAccount)) {
     throw new Erc7710DryRunError(
-      "Stored session account does not match the Advanced Permission grant."
+      "已保存会话账户与 Advanced Permission 授权不匹配。"
     );
   }
 
   const delegationProvider = createx402DelegationProvider({
     account: sessionAccount,
-    from: assertAddress(input.grant.to, "Grant redeemer"),
+    from: assertAddress(input.grant.to, "授权 redeemer"),
     parentPermissionContext: assertHex(
       input.grant.context,
-      "Grant permission context"
+      "授权 permission context"
     ),
     expirySeconds: (requirement) => requirement.maxTimeoutSeconds
   });
@@ -315,7 +320,7 @@ export async function dryRunErc7710Payment(
   const grant = assertActiveGrant(input.advancedPermissionGrant);
   const parentPermissionContext = assertHex(
     grant.context,
-    "Grant permission context"
+    "授权 permission context"
   );
   const httpClient = createDryRunHttpClient({
     expectedPayTo: input.expectedPayTo,
@@ -336,7 +341,7 @@ export async function dryRunErc7710Payment(
 
   if (response.status !== 402) {
     throw new Erc7710DryRunError(
-      `Expected an unpaid x402 requirement for dry run, but the endpoint returned HTTP ${response.status}.`
+      `Dry run 预期收到未支付的 x402 requirement，但接口返回 HTTP ${response.status}。`
     );
   }
 
@@ -348,6 +353,14 @@ export async function dryRunErc7710Payment(
   const selectedRequirement = selectedRequirementFromPayload(paymentPayload);
   const permissionContext = permissionContextFromPayload(paymentPayload);
   const payloadAddresses = assertPayloadMatchesGrant(paymentPayload, grant);
+  const payloadProof = buildErc7710PayloadProof({
+    localPayloadMatchesGrant: true,
+    permissionContext,
+    redeemerConstraint: null,
+    serverPayloadMatchesGrant: null,
+    settlementPreflight: false,
+    validationSource: "client_local"
+  });
   const requirement = sanitizeRequirement(
     paymentRequired.x402Version,
     selectedRequirement,
@@ -378,13 +391,17 @@ export async function dryRunErc7710Payment(
       ),
       delegationManager: payloadAddresses.delegationManager,
       delegator: payloadAddresses.delegator,
+      childDelegationTarget: payloadProof.childDelegationTarget,
+      delegationCount: payloadProof.delegationCount,
       permissionContextHash: keccak256(permissionContext),
       permissionContextBytes: size(permissionContext)
     },
+    payloadProof,
     safeguards: {
       fetched402Only: true,
       paidRequestSubmitted: false,
       paymentSignatureHeaderSubmitted: false,
+      payloadValidatedAgainstGrant: true,
       walletRequestExecutionPermissionsCalled: false,
       ethSendTransactionCalled: false,
       rawPermissionContextReturned: false

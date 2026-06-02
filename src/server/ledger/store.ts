@@ -6,6 +6,11 @@ import type {
   LedgerEntry,
   LedgerEntryInput
 } from "@/shared/types";
+import {
+  hasSettledPaymentIdentity,
+  settledPaymentIdentitiesMatch,
+  settledPaymentIdentity
+} from "./settledPaymentIdentity";
 
 const { mockIds, policy } = spendguardConfig;
 const LEDGER_FILE = "ledger.json";
@@ -130,10 +135,48 @@ function formatAtomicUsdc(amountAtomic: AtomicAmount): string {
 }
 
 function cloneLedgerEntry(entry: LedgerEntry): LedgerEntry {
-  return { ...entry };
+  return {
+    ...entry,
+    agentDecision: entry.agentDecision ? { ...entry.agentDecision } : null
+  };
+}
+
+function matchingSettledLedgerEntry(input: LedgerEntryInput): LedgerEntry | null {
+  if (
+    input.status !== "success" &&
+    input.status !== "paid_ai_failed"
+  ) {
+    return null;
+  }
+
+  const identity = settledPaymentIdentity(input);
+
+  if (!hasSettledPaymentIdentity(identity)) {
+    return null;
+  }
+
+  return (
+    getLedgerEntriesState().find((entry) => {
+      if (entry.status !== "success" && entry.status !== "paid_ai_failed") {
+        return false;
+      }
+
+      const existing = settledPaymentIdentity(entry);
+
+      return settledPaymentIdentitiesMatch(identity, existing);
+    }) ?? null
+  );
+}
+
+export function findSettledLedgerEntry(input: LedgerEntryInput): LedgerEntry | null {
+  const duplicate = matchingSettledLedgerEntry(input);
+  return duplicate ? cloneLedgerEntry(duplicate) : null;
 }
 
 export function appendLedgerEntry(input: LedgerEntryInput): LedgerEntry {
+  const duplicate = findSettledLedgerEntry(input);
+  if (duplicate) return duplicate;
+
   const occurredAt = input.occurredAt ?? nowIso();
   const entry: LedgerEntry = {
     id: input.id ?? nextLedgerId(),
@@ -148,6 +191,7 @@ export function appendLedgerEntry(input: LedgerEntryInput): LedgerEntry {
     status: input.status,
     occurredAt,
     reason: input.reason ?? null,
+    agentDecision: input.agentDecision ?? null,
     paymentRequirement: input.paymentRequirement ?? null,
     paymentReceipt: input.paymentReceipt ?? null,
     veniceRiskBrief: input.veniceRiskBrief ?? null,

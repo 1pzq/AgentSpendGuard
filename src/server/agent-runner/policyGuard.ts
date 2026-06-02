@@ -62,7 +62,7 @@ function blockedError(
 
 function assertAtomicAmount(amountAtomic: AtomicAmount, field: string): bigint {
   if (!/^\d+$/.test(amountAtomic)) {
-    throw blockedError("INVALID_AMOUNT", `${field} must be an unsigned atomic amount`, {
+    throw blockedError("INVALID_AMOUNT", `${field} 必须是无符号 atomic 金额`, {
       amountAtomic,
       field
     });
@@ -77,14 +77,14 @@ function assertNotExpired(expiresAt: string | null, now: Date, field: string) {
   const expiry = Date.parse(expiresAt);
 
   if (Number.isNaN(expiry)) {
-    throw blockedError("CONFIG_MISMATCH", `${field} is not a valid ISO timestamp`, {
+    throw blockedError("CONFIG_MISMATCH", `${field} 不是有效的 ISO 时间戳`, {
       expiresAt,
       field
     });
   }
 
   if (expiry <= now.getTime()) {
-    throw blockedError("PERMISSION_EXPIRED", "Permission is expired", {
+    throw blockedError("PERMISSION_EXPIRED", "权限已过期", {
       expiresAt,
       field,
       now: now.toISOString()
@@ -148,7 +148,7 @@ function assertPermissionMatchesConfig(permissionRecord: PermissionRecord) {
   assertAllowedText(
     permissionRecord.payTo,
     allowlist.payTo,
-    "Permission payTo is not allowlisted",
+    "权限 payTo 不在 allowlist 中",
     { field: "payTo" },
     true,
     "CONFIG_MISMATCH"
@@ -157,7 +157,7 @@ function assertPermissionMatchesConfig(permissionRecord: PermissionRecord) {
   if (mismatches.length > 0) {
     throw blockedError(
       "CONFIG_MISMATCH",
-      "Permission does not match SpendGuard config",
+      "权限与 SpendGuard 配置不匹配",
       {
         mismatches,
         permissionId: permissionRecord.id
@@ -174,7 +174,7 @@ function assertAdvancedPermissionGrant(permissionRecord: PermissionRecord, now: 
   if (!grant) {
     throw blockedError(
       "PERMISSION_STATUS_NOT_ALLOWED",
-      "MetaMask Advanced Permission grant is required for agent spending",
+      "agent 支出需要 MetaMask Advanced Permission 授权",
       {
         permissionId: permissionRecord.id
       }
@@ -184,7 +184,7 @@ function assertAdvancedPermissionGrant(permissionRecord: PermissionRecord, now: 
   if (grant.source !== "metamask-erc7715" || grant.permissionType !== "erc20-token-periodic") {
     throw blockedError(
       "PERMISSION_STATUS_NOT_ALLOWED",
-      "Stored permission is not a MetaMask ERC-20 periodic Advanced Permission",
+      "已保存权限不是 MetaMask ERC-20 周期性 Advanced Permission",
       {
         permissionId: permissionRecord.id,
         permissionType: grant.permissionType,
@@ -194,7 +194,7 @@ function assertAdvancedPermissionGrant(permissionRecord: PermissionRecord, now: 
   }
 
   if (grant.status !== "granted") {
-    throw blockedError("PERMISSION_REVOKED", "MetaMask Advanced Permission is not granted", {
+    throw blockedError("PERMISSION_REVOKED", "MetaMask Advanced Permission 未授予", {
       grantStatus: grant.status,
       permissionId: permissionRecord.id
     });
@@ -203,7 +203,7 @@ function assertAdvancedPermissionGrant(permissionRecord: PermissionRecord, now: 
   assertNotExpired(grant.expiresAt, now, "advancedPermissionGrant.expiresAt");
 
   if (grant.expiry <= Math.floor(now.getTime() / 1000)) {
-    throw blockedError("PERMISSION_EXPIRED", "MetaMask Advanced Permission is expired", {
+    throw blockedError("PERMISSION_EXPIRED", "MetaMask Advanced Permission 已过期", {
       expiry: grant.expiry,
       now: now.toISOString(),
       permissionId: permissionRecord.id
@@ -239,7 +239,7 @@ function assertAdvancedPermissionGrant(permissionRecord: PermissionRecord, now: 
   assertAllowedText(
     grant.tokenAddress,
     [spendguardConfig.token.address],
-    "Advanced Permission token is not the configured spend token",
+    "Advanced Permission token 不是配置的支出 token",
     { field: "advancedPermissionGrant.tokenAddress" },
     true,
     "CONFIG_MISMATCH"
@@ -248,7 +248,7 @@ function assertAdvancedPermissionGrant(permissionRecord: PermissionRecord, now: 
   if (mismatches.length > 0) {
     throw blockedError(
       "CONFIG_MISMATCH",
-      "Advanced Permission grant does not match SpendGuard policy",
+      "Advanced Permission 授权与 SpendGuard 策略不匹配",
       {
         mismatches,
         permissionId: permissionRecord.id
@@ -268,7 +268,7 @@ function assertPaymentRequirementMatchesConfig(
   if (paymentRequirement.status !== "required") {
     throw blockedError(
       "REQUIREMENT_STATUS_INVALID",
-      "Payment requirement is not payable",
+      "支付要求当前不可支付",
       {
         requirementId: paymentRequirement.id,
         status: paymentRequirement.status
@@ -282,7 +282,7 @@ function assertPaymentRequirementMatchesConfig(
     if (Number.isNaN(expiry)) {
       throw blockedError(
         "CONFIG_MISMATCH",
-        "Payment requirement expiry is not a valid ISO timestamp",
+        "支付要求过期时间不是有效 ISO 时间戳",
         {
           expiresAt: paymentRequirement.expiresAt,
           requirementId: paymentRequirement.id
@@ -291,7 +291,7 @@ function assertPaymentRequirementMatchesConfig(
     }
 
     if (expiry <= now.getTime()) {
-      throw blockedError("REQUIREMENT_EXPIRED", "Payment requirement is expired", {
+      throw blockedError("REQUIREMENT_EXPIRED", "支付要求已过期", {
         expiresAt: paymentRequirement.expiresAt,
         now: now.toISOString(),
         requirementId: paymentRequirement.id
@@ -322,7 +322,7 @@ function assertPaymentRequirementMatchesConfig(
   assertAllowedText(
     paymentRequirement.payTo,
     allowlist.payTo,
-    "Payment requirement payTo is not allowlisted",
+    "支付要求 payTo 不在 allowlist 中",
     {
       field: "payTo",
       requirementId: paymentRequirement.id
@@ -332,7 +332,7 @@ function assertPaymentRequirementMatchesConfig(
   assertAllowedText(
     paymentRequirement.payTo,
     [permissionRecord.payTo],
-    "Payment requirement payTo does not match permission",
+    "支付要求 payTo 与权限不匹配",
     {
       field: "payTo",
       permissionPayTo: permissionRecord.payTo,
@@ -345,7 +345,7 @@ function assertPaymentRequirementMatchesConfig(
   assertAllowedText(
     resource,
     allowlist.resources ?? allowlist.endpoints,
-    "Payment requirement resource is not allowlisted",
+    "支付要求 resource 不在 allowlist 中",
     {
       field: "resource",
       requirementId: paymentRequirement.id
@@ -356,7 +356,7 @@ function assertPaymentRequirementMatchesConfig(
     assertAllowedText(
       paymentRequirement.facilitator,
       allowlist.facilitators ?? [],
-      "Payment requirement facilitator is not allowlisted",
+      "支付要求 facilitator 不在 allowlist 中",
       {
         field: "facilitator",
         requirementId: paymentRequirement.id
@@ -367,7 +367,7 @@ function assertPaymentRequirementMatchesConfig(
   if (mismatches.length > 0) {
     throw blockedError(
       "CONFIG_MISMATCH",
-      "Payment requirement does not match SpendGuard config",
+      "支付要求与 SpendGuard 配置不匹配",
       {
         mismatches,
         requirementId: paymentRequirement.id
@@ -381,28 +381,28 @@ export function assertPolicyGuard(input: PolicyGuardInput): PolicyGuardDecision 
   const { permissionRecord } = input;
 
   if (input.action !== AGENT_RUNNER_ACTION) {
-    throw blockedError("INVALID_ACTION", "Agent action is not allowed", {
+    throw blockedError("INVALID_ACTION", "不允许该 agent 动作", {
       action: input.action,
       allowedAction: AGENT_RUNNER_ACTION
     });
   }
 
   if (!permissionRecord) {
-    throw blockedError("PERMISSION_NOT_FOUND", "Permission record was not found", {
+    throw blockedError("PERMISSION_NOT_FOUND", "未找到权限记录", {
       permissionRecordId: null,
       policyId: input.policyId
     });
   }
 
   if (permissionRecord.policyId !== input.policyId) {
-    throw blockedError("POLICY_MISMATCH", "Permission policyId does not match request", {
+    throw blockedError("POLICY_MISMATCH", "权限 policyId 与请求不匹配", {
       permissionPolicyId: permissionRecord.policyId,
       requestedPolicyId: input.policyId
     });
   }
 
   if (permissionRecord.status === "revoked" || permissionRecord.revokedAt) {
-    throw blockedError("PERMISSION_REVOKED", "Permission has been revoked", {
+    throw blockedError("PERMISSION_REVOKED", "权限已撤销", {
       permissionId: permissionRecord.id,
       revokedAt: permissionRecord.revokedAt,
       revokedReason: permissionRecord.revokedReason
@@ -415,7 +415,7 @@ export function assertPolicyGuard(input: PolicyGuardInput): PolicyGuardDecision 
   ) {
     throw blockedError(
       "PERMISSION_STATUS_NOT_ALLOWED",
-      "Permission is not active for agent spending",
+      "权限未处于 agent 可支出状态",
       {
         permissionId: permissionRecord.id,
         status: permissionRecord.status
@@ -438,13 +438,13 @@ export function assertPolicyGuard(input: PolicyGuardInput): PolicyGuardDecision 
   const maxAmount = assertAtomicAmount(permissionRecord.maxSpendAtomic, "maxAmountAtomic");
 
   if (amount <= BigInt(0)) {
-    throw blockedError("INVALID_AMOUNT", "Payment amount must be greater than zero", {
+    throw blockedError("INVALID_AMOUNT", "支付金额必须大于 0", {
       amountAtomic
     });
   }
 
   if (amount > maxPrice) {
-    throw blockedError("PRICE_EXCEEDED", "Payment amount exceeds max price", {
+    throw blockedError("PRICE_EXCEEDED", "支付金额超过单次价格上限", {
       amountAtomic,
       maxPriceAtomic: permissionRecord.pricePerCallAtomic,
       permissionId: permissionRecord.id
@@ -452,7 +452,7 @@ export function assertPolicyGuard(input: PolicyGuardInput): PolicyGuardDecision 
   }
 
   if (spent + amount > maxAmount) {
-    throw blockedError("BUDGET_EXCEEDED", "Payment amount exceeds remaining budget", {
+    throw blockedError("BUDGET_EXCEEDED", "支付金额超过剩余预算", {
       amountAtomic,
       maxAmountAtomic: permissionRecord.maxSpendAtomic,
       permissionId: permissionRecord.id,

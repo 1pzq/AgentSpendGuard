@@ -34,7 +34,11 @@ export async function POST(request: Request) {
   const body = await readBody(request);
   const permission = getPermissionRecord();
 
-  if (getDemoPhase() === "initial") {
+  if (
+    getDemoPhase() === "initial" &&
+    permission.status !== "active" &&
+    permission.status !== "fallback_local"
+  ) {
     return jsonError(
       "WALLET_NOT_CONNECTED",
       "Connect a Base Sepolia wallet before running the agent.",
