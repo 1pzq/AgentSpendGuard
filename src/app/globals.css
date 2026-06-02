@@ -722,6 +722,70 @@ button.ghost {
   text-decoration: underline;
 }
 
+.chain-verify {
+  margin-top: 14px;
+  border-top: 1px solid var(--line);
+  padding-top: 14px;
+}
+
+.evidence-verify-button {
+  width: 100%;
+  margin-bottom: 10px;
+}
+
+.chain-verify-error {
+  margin: 0;
+  border: 1px solid #ddb4ae;
+  border-radius: 8px;
+  background: var(--red-soft);
+  color: var(--red);
+  font-size: 0.86rem;
+  font-weight: 750;
+  line-height: 1.45;
+  padding: 9px 10px;
+}
+
+.chain-verify-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+}
+
+.chain-verify-list li {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fbfcfb;
+  font-size: 0.82rem;
+  line-height: 1.45;
+  list-style: none;
+  padding: 9px 10px;
+}
+
+.chain-verify-list a {
+  color: var(--blue);
+  font-weight: 850;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.chain-verify-list a:hover {
+  text-decoration: underline;
+}
+
+.chain-verify-list .is-ok {
+  color: var(--green);
+  font-weight: 900;
+}
+
+.chain-verify-list .is-failed {
+  color: var(--red);
+  font-weight: 900;
+}
+
 .seller-boundary {
   border-color: #bfd2cc;
   background: #f4f8f6;

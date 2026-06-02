@@ -47,6 +47,7 @@ status 为成功。
 - 在 `docs/JUDGE_SUBMISSION_OVERVIEW_CN.md` 补充 DelegationManager、selector、验证命令。
 - 新增 Dashboard `Chain Evidence` 面板，直接展示 DelegationManager、function selector、tx link、payload context hash。
 - 新增 `npm run verify:chain-evidence`，通过 Base Sepolia RPC 验证 tx 和 USDC transfer。
+- 新增 `GET /api/evidence/chain`，Dashboard 可以通过前端按钮触发同一套链上验证。
 
 ### 现场回答
 
@@ -152,6 +153,6 @@ SpendGuard 不能保证 agent 的自然语言理由一定无恶意。
 ## 下一步优先级
 
 1. 用新增 Chain Evidence 面板录一遍演示，确保评委第一眼看到 tx、DelegationManager 和 selector。
-2. 在提交材料中把 `npm run verify:chain-evidence` 放到验证步骤里。
+2. 在提交材料中同时写清楚前端按钮和 `npm run verify:chain-evidence` 两种验证方式。
 3. 补一个标准 x402 client interoperability smoke，强化“不是私有 HTTP 协议”。
 4. 把 ledger 升级为更持久的 SQLite 或 append-only JSONL，降低本地 demo persistence 的扣分风险。

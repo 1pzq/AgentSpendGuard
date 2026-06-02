@@ -1,9 +1,35 @@
+"use client";
+
+import { useState } from "react";
 import { BASE_SEPOLIA_EXPLORER_URL } from "@/shared/chain";
-import type { SpendGuardDemoState } from "@/shared/types";
+import type { ApiResponse, SpendGuardDemoState } from "@/shared/types";
 import { StatusBadge } from "./StatusBadge";
 
 type ChainEvidencePanelProps = {
   state: SpendGuardDemoState;
+};
+
+type ChainEvidenceVerificationResult = {
+  blockNumber: string | null;
+  call: string;
+  explorerUrl: string;
+  failures: string[];
+  gasUsed: string | null;
+  inputSelector: string | null;
+  ok: boolean;
+  payloadContextHash: string;
+  to: string | null;
+  txHash: string;
+};
+
+type ChainEvidenceVerificationReport = {
+  checkedAt: string;
+  delegationManager: string;
+  functionSelector: string;
+  functionSignature: string;
+  network: string;
+  ok: boolean;
+  results: ChainEvidenceVerificationResult[];
 };
 
 const REDEEM_DELEGATIONS_SELECTOR = "0xcef6d209";
@@ -42,7 +68,22 @@ function chainEvidenceCopy(state: SpendGuardDemoState, txHash: string | null) {
   return "尚未产生链上 settlement 证据。";
 }
 
+function verificationStatusCopy(
+  report: ChainEvidenceVerificationReport | null,
+  verifying: boolean
+) {
+  if (verifying) return "正在通过 Base Sepolia RPC 校验链上证据。";
+  if (!report) return "点击后由前端请求服务端验证脚本，不在浏览器里执行 shell。";
+  return report.ok
+    ? `链上验证通过：${report.results.length} 笔 tx 均匹配 redeemDelegations 和 USDC 转账。`
+    : "链上验证未通过，请查看失败项。";
+}
+
 export function ChainEvidencePanel({ state }: ChainEvidencePanelProps) {
+  const [verification, setVerification] =
+    useState<ChainEvidenceVerificationReport | null>(null);
+  const [verificationError, setVerificationError] = useState<string | null>(null);
+  const [verifying, setVerifying] = useState(false);
   const proofEntry = latestProofEntry(state);
   const txHash = state.x402Evidence.paidRequest.txHash ?? proofEntry?.txHash ?? null;
   const payloadHash =
@@ -59,6 +100,32 @@ export function ChainEvidencePanel({ state }: ChainEvidencePanelProps) {
   const explorerHref = txHash
     ? `${BASE_SEPOLIA_EXPLORER_URL}/tx/${txHash}`
     : null;
+
+  async function verifyEvidence() {
+    setVerifying(true);
+    setVerificationError(null);
+
+    try {
+      const response = await fetch("/api/evidence/chain", {
+        cache: "no-store"
+      });
+      const json =
+        (await response.json()) as ApiResponse<ChainEvidenceVerificationReport>;
+
+      if (!json.ok) {
+        throw new Error(json.error.message);
+      }
+
+      setVerification(json.data);
+    } catch (error) {
+      setVerification(null);
+      setVerificationError(
+        error instanceof Error ? error.message : "链上证据验证失败。"
+      );
+    } finally {
+      setVerifying(false);
+    }
+  }
 
   return (
     <article className="panel chain-evidence-panel">
@@ -109,6 +176,41 @@ export function ChainEvidencePanel({ state }: ChainEvidencePanelProps) {
           <dd>{shortenHex(childTarget)}</dd>
         </div>
       </dl>
+      <div className="chain-verify" aria-label="链上证据验证">
+        <button
+          className="ghost evidence-verify-button"
+          disabled={verifying}
+          onClick={verifyEvidence}
+          type="button"
+        >
+          {verifying ? "验证中..." : "验证链上证据"}
+        </button>
+        <p className="panel-note">
+          {verificationStatusCopy(verification, verifying)}
+        </p>
+        {verificationError ? (
+          <p className="chain-verify-error">{verificationError}</p>
+        ) : null}
+        {verification ? (
+          <ul className="chain-verify-list">
+            {verification.results.map((result) => (
+              <li key={result.txHash}>
+                <span className={result.ok ? "is-ok" : "is-failed"}>
+                  {result.ok ? "PASS" : "FAIL"} {result.call}
+                </span>
+                <a href={result.explorerUrl} rel="noreferrer" target="_blank">
+                  {shortenHex(result.txHash)}
+                </a>
+                <span>block {result.blockNumber ?? "n/a"}</span>
+                <span>selector {result.inputSelector ?? "n/a"}</span>
+                {result.failures.length > 0 ? (
+                  <span>{result.failures.join("；")}</span>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+      </div>
     </article>
   );
 }

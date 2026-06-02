@@ -180,8 +180,10 @@ asset: Base Sepolia USDC, 0x036CbD53842c5426634e7929541eC2318f3dCF7e
 npm run verify:chain-evidence
 ```
 
-该脚本会通过 Base Sepolia RPC 检查交易状态、`to` 地址、function selector、
-USDC service payment transfer 和 1Shot relay fee transfer。
+Dashboard 的 `Chain Evidence` 面板也提供同一验证入口：前端按钮会请求
+`GET /api/evidence/chain`，由服务端通过 Base Sepolia RPC 检查交易状态、
+`to` 地址、function selector、USDC service payment transfer 和 1Shot relay
+fee transfer。浏览器不会直接执行 shell 命令，也不会暴露本地 RPC 配置。
 
 ## 安全边界
 
