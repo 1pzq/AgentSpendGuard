@@ -332,6 +332,7 @@ button.ghost {
 }
 
 .agent-decision-panel,
+.chain-evidence-panel,
 .status-rail,
 .relayer-panel,
 .result-panel {
@@ -695,6 +696,32 @@ button.ghost {
   font-size: 0.88rem;
 }
 
+.panel-note {
+  margin: 0 0 12px;
+  color: var(--muted);
+  font-size: 0.9rem;
+  line-height: 1.55;
+}
+
+.chain-evidence-list {
+  gap: 10px;
+}
+
+.chain-evidence-list dd {
+  font-size: 0.88rem;
+}
+
+.evidence-link {
+  color: var(--blue);
+  font-weight: 850;
+  overflow-wrap: anywhere;
+  text-decoration: none;
+}
+
+.evidence-link:hover {
+  text-decoration: underline;
+}
+
 .seller-boundary {
   border-color: #bfd2cc;
   background: #f4f8f6;
@@ -936,6 +963,7 @@ button.ghost {
   }
 
   .agent-decision-panel,
+  .chain-evidence-panel,
   .status-rail,
   .relayer-panel,
   .result-panel,
@@ -960,6 +988,7 @@ button.ghost {
   .permission-panel,
   .agent-panel,
   .agent-decision-panel,
+  .chain-evidence-panel,
   .status-rail,
   .relayer-panel,
   .result-panel,

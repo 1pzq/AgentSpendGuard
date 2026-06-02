@@ -11,7 +11,8 @@
     "p7:verify": "node scripts/p7-verify.mjs",
     "smoke:p3": "node scripts/p3-caveat-assertion-smoke.mjs",
     "smoke:p8": "node scripts/p8-agent-decision-smoke.mjs",
-    "smoke:step7": "node scripts/step7-failure-smoke.mjs"
+    "smoke:step7": "node scripts/step7-failure-smoke.mjs",
+    "verify:chain-evidence": "node scripts/verify-chain-evidence.mjs"
   },
   "dependencies": {
     "@metamask/smart-accounts-kit": "^1.6.0",

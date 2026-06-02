@@ -42,6 +42,7 @@ import type {
 import { buildErc7710ProofFromGrant } from "@/shared/x402/erc7710DelegationInspector";
 import { AgentControls, DemoCommand } from "./AgentControls";
 import { AgentDecisionPanel } from "./AgentDecisionPanel";
+import { ChainEvidencePanel } from "./ChainEvidencePanel";
 import { PaymentRail } from "./PaymentRail";
 import { PermissionPreview } from "./PermissionPreview";
 import { PolicyCard } from "./PolicyCard";
@@ -1341,6 +1342,7 @@ export function Dashboard({
         <AgentControls state={state} />
         <AgentDecisionPanel state={state} />
         <PaymentRail state={state} />
+        <ChainEvidencePanel state={state} />
         <RelayerTimeline state={state} />
         <VeniceResult state={state} />
         <SpendLedger state={state} />

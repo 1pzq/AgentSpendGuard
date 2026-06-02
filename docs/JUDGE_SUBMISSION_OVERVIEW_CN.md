@@ -126,6 +126,25 @@ https://sepolia.basescan.org/tx/0x9398cc02b95761f07c890a9a6346318e78ef4649c1c971
 https://sepolia.basescan.org/tx/0xa065cfa4d2e09048ae4015e2f4a779c26de05cccae4a14af65c8356d174f65d3
 ```
 
+ERC-7710 redeem proof：
+
+```text
+DelegationManager: 0xdb9B1e94B5b69Df7e401DDbedE43491141047dB3
+function: redeemDelegations(bytes[],bytes32[],bytes[])
+selector: 0xcef6d209
+network: Base Sepolia
+```
+
+本地验证命令：
+
+```bash
+npm run verify:chain-evidence
+```
+
+该命令通过 Base Sepolia RPC 读取上述 tx，校验 receipt status、tx `to`
+地址、function selector、0.01 USDC service transfer 和 1Shot relay fee
+transfer。
+
 ### 7. 超预算付款前阻断
 
 项目已经验证 oversized request 会在 paid header / settlement 之前被阻断：
