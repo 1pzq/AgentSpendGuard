@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { BASE_SEPOLIA_EXPLORER_URL } from "@/shared/chain";
 import type { ApiResponse, SpendGuardDemoState } from "@/shared/types";
-import { StatusBadge } from "./StatusBadge";
 
 type ChainEvidencePanelProps = {
   state: SpendGuardDemoState;
@@ -48,32 +47,12 @@ function latestProofEntry(state: SpendGuardDemoState) {
   );
 }
 
-function chainEvidenceStatus(state: SpendGuardDemoState, txHash: string | null) {
-  if (txHash) return "confirmed";
-  if (state.payment === "blocked") return "blocked";
-  if (state.x402Evidence.paymentHeaderStatus === "submitted") return "pending";
-  return "waiting";
-}
-
-function chainEvidenceCopy(state: SpendGuardDemoState, txHash: string | null) {
-  if (txHash) {
-    return "已记录链上 tx。评审可在 Basescan 对照 DelegationManager、方法 selector、payload hash 和 USDC 转账。";
-  }
-  if (state.payment === "blocked") {
-    return "本次请求在付款前被阻断；没有 PAYMENT header，也没有 settlement tx。";
-  }
-  if (state.x402Evidence.paymentHeaderStatus === "submitted") {
-    return "paid request 已提交，正在等待 settlement 结果。";
-  }
-  return "尚未产生链上 settlement 证据。";
-}
-
 function verificationStatusCopy(
   report: ChainEvidenceVerificationReport | null,
   verifying: boolean
 ) {
   if (verifying) return "正在通过 Base Sepolia RPC 校验链上证据。";
-  if (!report) return "点击后由前端请求服务端验证脚本，不在浏览器里执行 shell。";
+  if (!report) return null;
   return report.ok
     ? `链上验证通过：${report.results.length} 笔 tx 均匹配 redeemDelegations 和 USDC 转账。`
     : "链上验证未通过，请查看失败项。";
@@ -96,7 +75,6 @@ export function ChainEvidencePanel({ state }: ChainEvidencePanelProps) {
     state.erc7710Proof.payload?.childDelegationTarget ??
     proofEntry?.childDelegationTarget ??
     null;
-  const status = chainEvidenceStatus(state, txHash);
   const explorerHref = txHash
     ? `${BASE_SEPOLIA_EXPLORER_URL}/tx/${txHash}`
     : null;
@@ -129,14 +107,6 @@ export function ChainEvidencePanel({ state }: ChainEvidencePanelProps) {
 
   return (
     <article className="panel chain-evidence-panel">
-      <div className="panel-header">
-        <div>
-          <p className="eyebrow">Chain Evidence</p>
-          <h2>ERC-7710 链上证明</h2>
-        </div>
-        <StatusBadge value={status} />
-      </div>
-      <p className="panel-note">{chainEvidenceCopy(state, txHash)}</p>
       <dl className="detail-list chain-evidence-list">
         <div>
           <dt>DelegationManager</dt>
@@ -185,9 +155,11 @@ export function ChainEvidencePanel({ state }: ChainEvidencePanelProps) {
         >
           {verifying ? "验证中..." : "验证链上证据"}
         </button>
-        <p className="panel-note">
-          {verificationStatusCopy(verification, verifying)}
-        </p>
+        {verification || verifying ? (
+          <p className="panel-note">
+            {verificationStatusCopy(verification, verifying)}
+          </p>
+        ) : null}
         {verificationError ? (
           <p className="chain-verify-error">{verificationError}</p>
         ) : null}

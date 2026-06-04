@@ -19,12 +19,12 @@ export function AgentDecisionPanel({ state }: AgentDecisionPanelProps) {
       <div className="panel-header">
         <div>
           <p className="eyebrow">Agent Decision</p>
-          <h2>AI 支出意图</h2>
+          <h2>是否值得花这 0.01 USDC</h2>
         </div>
         <StatusBadge value={decision?.decision ?? "waiting"} />
       </div>
       {decision ? (
-        <dl className="detail-list agent-decision-list">
+        <dl className="detail-list agent-decision-list compact-evidence-list">
           <div>
             <dt>Decision</dt>
             <dd>
@@ -39,29 +39,17 @@ export function AgentDecisionPanel({ state }: AgentDecisionPanelProps) {
             <dd>{decision.reason}</dd>
           </div>
           <div>
-            <dt>Estimated cost</dt>
-            <dd>{decision.estimatedCost}</dd>
-          </div>
-          <div>
-            <dt>Budget before</dt>
-            <dd>{decision.budgetBefore}</dd>
-          </div>
-          <div>
-            <dt>Budget after</dt>
-            <dd>{decision.budgetAfter}</dd>
-          </div>
-          <div>
-            <dt>Enforcement</dt>
+            <dt>Guardrail</dt>
             <dd>
               <span className="decision-inline">
+                {decision.estimatedCost}
                 <StatusBadge value={decision.policyCheck} />
-                {decision.enforcement}
               </span>
             </dd>
           </div>
         </dl>
       ) : (
-        <p className="empty-text">尚未生成支出决策。</p>
+        <p className="empty-text">运行 agent 后，这里只显示支出判断、理由和策略结果。</p>
       )}
     </article>
   );

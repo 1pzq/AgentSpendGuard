@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   connectBaseSepoliaWallet,
   detectMetaMaskProvider,
@@ -34,25 +34,17 @@ import type {
   Erc7710PayloadProof,
   OnchainPermissionAvailableAmount,
   SpendGuardDemoState,
-  StateEnums,
   X402ChallengeStatus,
   X402Evidence,
   X402PaymentHeaderStatus
 } from "@/shared/types";
 import { buildErc7710ProofFromGrant } from "@/shared/x402/erc7710DelegationInspector";
-import { AgentControls, DemoCommand } from "./AgentControls";
-import { AgentDecisionPanel } from "./AgentDecisionPanel";
+import { DemoCommand } from "./AgentControls";
 import { ChainEvidencePanel } from "./ChainEvidencePanel";
-import { PaymentRail } from "./PaymentRail";
-import { PermissionPreview } from "./PermissionPreview";
-import { PolicyCard } from "./PolicyCard";
-import { RelayerTimeline } from "./RelayerTimeline";
-import { SafetyPanel } from "./SafetyPanel";
+import { ConfirmDialog, type ConfirmDialogOptions } from "./ConfirmDialog";
+import { DemoEvidenceStage } from "./DemoEvidenceStage";
 import { SpendLedger } from "./SpendLedger";
-import { StateContract } from "./StateContract";
 import { StatusBadge } from "./StatusBadge";
-import { VeniceResult } from "./VeniceResult";
-import { WalletPanel } from "./WalletPanel";
 
 const POLICY_DEFAULTS: DashboardPolicyConfig = {
   id: "policy-demo-deepseek-001",
@@ -113,35 +105,6 @@ const INITIAL_ONCHAIN_PERMISSION: OnchainPermissionAvailableAmount = {
   tokenAddress: null,
   tokenDecimals: 6,
   updatedAt: null
-};
-
-export const STATE_ENUMS: StateEnums = {
-  wallet: ["disconnected", "connected", "unsupported"],
-  policy: ["draft", "ready_to_sign", "active", "exhausted", "expired", "revoked"],
-  permission: [
-    "not_requested",
-    "requested",
-    "approved",
-    "active",
-    "rejected",
-    "redeemed",
-    "revoked",
-    "fallback_local"
-  ],
-  agentAction: ["idle", "prechecking", "running", "blocked", "succeeded", "failed"],
-  payment: ["none", "required_402", "paying", "paid", "failed", "blocked"],
-  relayer: [
-    "not_used",
-    "quote_requested",
-    "quoted",
-    "submitted",
-    "pending",
-    "confirmed",
-    "failed",
-    "mocked"
-  ],
-  ledger: ["empty", "has_success", "has_blocked", "closed"],
-  revocation: ["available", "revoking", "revoked", "failed"]
 };
 
 const INITIAL_NARRATIVE = "连接 MetaMask，开始受预算约束的 agent 支付流程。";
@@ -387,6 +350,22 @@ function successfulPaidCallCount(state: SpendGuardDemoState) {
   ).length;
 }
 
+function latestChainEvidenceEntry(state: SpendGuardDemoState) {
+  return state.ledgerEntries.find(
+    (entry) => entry.txHash || entry.payloadContextHash
+  );
+}
+
+function chainEvidenceStatusForState(state: SpendGuardDemoState) {
+  const proofEntry = latestChainEvidenceEntry(state);
+  const txHash = state.x402Evidence.paidRequest.txHash ?? proofEntry?.txHash ?? null;
+
+  if (txHash) return "confirmed";
+  if (state.payment === "blocked") return "blocked";
+  if (state.x402Evidence.paymentHeaderStatus === "submitted") return "pending";
+  return "waiting";
+}
+
 function canUseStoredGrantForPaidCall(state: SpendGuardDemoState) {
   return (
     state.wallet === "connected" &&
@@ -502,20 +481,20 @@ function hydratedNarrative(state: SpendGuardDemoState) {
   const paidCalls = successfulPaidCallCount(state);
 
   if (state.payment === "blocked") {
-    return `超预算请求已在 x402 paid header 提交前被阻断。同一个 Advanced Permission 授权下保留 ${paidCalls} 次已支付调用记录。`;
+    return `超预算请求已在 paid header 前阻断；已支付调用保留 ${paidCalls} 次。`;
   }
 
   if (state.agentAction === "succeeded" && state.payment === "paid") {
     const txHash = state.relayerInfo.txHash
-      ? ` 交易 ${shortenAddress(state.relayerInfo.txHash)} 已写入账本。`
+      ? ` 交易 ${shortenAddress(state.relayerInfo.txHash)} 已入账。`
       : "";
     const callCopy = paidCalls > 0 ? `第 #${paidCalls} 次付费调用已确认。` : "";
 
-    return `${callCopy}ERC-7710 结算复用了已保存的 Advanced Permission 授权。SpendGuard 已将 ${state.policyConfig.spent.toFixed(2)} USDC 计入 agent 预算，剩余 ${remainingBudget(state).toFixed(2)} USDC。${txHash}`;
+    return `${callCopy}已用 ${state.policyConfig.spent.toFixed(2)} USDC，剩余 ${remainingBudget(state).toFixed(2)} USDC。${txHash}`;
   }
 
   if (state.permission === "approved" && state.advancedPermissionGrant) {
-    return "已恢复保存的 MetaMask Advanced Permission 授权。运行 Agent 时可直接使用 ERC-7710，无需重新请求权限。";
+    return "已保存 MetaMask Advanced Permission，可直接运行 ERC-7710 x402 支付。";
   }
 
   return INITIAL_NARRATIVE;
@@ -544,15 +523,41 @@ export function Dashboard({
     useState<PaidErc7710RiskBriefData | null>(null);
   const [dryRunControlsEnabled, setDryRunControlsEnabled] = useState(false);
   const [busyAction, setBusyAction] = useState<BusyAction | null>(null);
+  const [confirmDialog, setConfirmDialog] =
+    useState<ConfirmDialogOptions | null>(null);
   const busyRef = useRef(false);
   const connectingWalletRef = useRef(false);
+  const confirmDialogResolverRef = useRef<((confirmed: boolean) => void) | null>(
+    null
+  );
   const runFailurePhaseRef = useRef<RunFailurePhase | null>(null);
   const paidPocFailurePhaseRef = useRef<
     Erc7710PaidPocStage | "precheck" | "refresh" | null
   >(null);
   const walletEpochRef = useRef(0);
 
-  const remaining = useMemo(() => remainingBudget(state), [state]);
+  const walletStepState = state.wallet === "connected" ? "done" : "active";
+  const permissionStepState =
+    state.permission === "approved" ||
+    state.permission === "redeemed" ||
+    state.permission === "revoked"
+      ? "done"
+      : state.wallet === "connected"
+        ? "active"
+        : "waiting";
+  const paymentStepState =
+    state.payment === "paid" || state.payment === "blocked"
+      ? "done"
+      : canUseStoredGrantForPaidCall(state)
+        ? "active"
+        : "waiting";
+  const ledgerStepState =
+    state.ledger !== "empty"
+      ? "done"
+      : state.payment === "paid" || state.payment === "blocked"
+        ? "active"
+        : "waiting";
+  const chainEvidenceStatus = chainEvidenceStatusForState(state);
 
   function resetDemoServer() {
     return fetch("/api/demo/reset", { method: "POST" }).catch(() => undefined);
@@ -560,6 +565,21 @@ export function Dashboard({
 
   function isCurrentWalletEpoch(epoch: number) {
     return walletEpochRef.current === epoch;
+  }
+
+  function requestConfirmation(options: ConfirmDialogOptions) {
+    confirmDialogResolverRef.current?.(false);
+
+    return new Promise<boolean>((resolve) => {
+      confirmDialogResolverRef.current = resolve;
+      setConfirmDialog(options);
+    });
+  }
+
+  function resolveConfirmation(confirmed: boolean) {
+    confirmDialogResolverRef.current?.(confirmed);
+    confirmDialogResolverRef.current = null;
+    setConfirmDialog(null);
   }
 
   useEffect(() => {
@@ -740,9 +760,7 @@ export function Dashboard({
         setDryRunPreview(null);
         setPaidPocResult(null);
         setNarrative(
-          `MetaMask connected as ${shortenAddress(
-            walletInfo.account
-          )}，网络为 Base Sepolia。批准前请确认权限范围。`
+          `MetaMask 已连接：${shortenAddress(walletInfo.account)} / Base Sepolia。`
         );
       } catch (error) {
         const failure = connectFailureNarrative(error);
@@ -784,7 +802,7 @@ export function Dashboard({
         setDryRunPreview(null);
         setPaidPocResult(null);
         setNarrative(
-          "MetaMask Advanced Permission 已批准。SpendGuard 已保存授权，agent 只能在该策略范围内支出。"
+          "Advanced Permission 已批准，agent 只能在这条预算内支付。"
         );
       } catch (error) {
         setState((current) => ({
@@ -837,7 +855,7 @@ export function Dashboard({
 
         setState(nextState);
         setNarrative(
-          "超预算请求已在支付前被阻断。SpendGuard 记录了策略违规，没有提交结算。"
+          "超预算请求已在支付前阻断，没有提交结算。"
         );
       } catch (error) {
         setState((current) => ({
@@ -918,9 +936,22 @@ export function Dashboard({
         const result = await payErc7710DeepseekRiskBrief({
           advancedPermissionGrant: state.advancedPermissionGrant,
           confirmAfterPreflight(preflight) {
-            return window.confirm(
-              `本地 ERC-7710 结算预检通过，检测到 ${preflight.simulatedRedeemers.length} 个 facilitator 签名者。现在提交第 #${callNumber} 次 ${erc7710PaidPocConfig.priceLabel} 付费调用吗？`
-            );
+            return requestConfirmation({
+              confirmLabel: "提交调用",
+              details: [
+                { label: "调用序号", value: `#${callNumber}` },
+                { label: "支付金额", value: erc7710PaidPocConfig.priceLabel },
+                {
+                  label: "预检结果",
+                  value: `${preflight.simulatedRedeemers.length} 个 facilitator 签名者`
+                },
+                { label: "网络", value: "Base Sepolia" }
+              ],
+              eyebrow: "ERC-7710 预检通过",
+              message:
+                "本地结算预检已经通过。确认后会提交真实 x402 付费请求，并等待 1Shot relay 结算。",
+              title: `提交第 #${callNumber} 次付费调用吗？`
+            });
           },
           expectedAmountAtomic: erc7710PaidPocConfig.amountAtomic,
           expectedPayTo: state.policyConfig.payTo,
@@ -976,7 +1007,7 @@ export function Dashboard({
         runFailurePhaseRef.current = null;
         const paidCalls = successfulPaidCallCount(nextState);
         setNarrative(
-          `第 #${paidCalls} 次付费调用已通过 ERC-7710 x402 结算，并复用已保存的 Advanced Permission 授权。已用 ${nextState.policyConfig.spent.toFixed(2)} USDC，剩余 ${remainingBudget(nextState).toFixed(2)} USDC。交易 ${result.x402.txHash ? shortenAddress(result.x402.txHash) : "等待中"} 已写入账本。`
+          `第 #${paidCalls} 次调用已结算。已用 ${nextState.policyConfig.spent.toFixed(2)} USDC，剩余 ${remainingBudget(nextState).toFixed(2)} USDC。`
         );
       } catch (error) {
         const message = error instanceof Error ? error.message : "Agent 运行失败。";
@@ -1045,9 +1076,19 @@ export function Dashboard({
   async function runPaidErc7710Poc() {
     if (!erc7710PaidPocConfig.enabled) return;
 
-    const confirmed = window.confirm(
-      `这会通过 ERC-7710 x402 付费 PoC 支出 ${erc7710PaidPocConfig.priceLabel} Base Sepolia USDC。继续吗？`
-    );
+    const confirmed = await requestConfirmation({
+      confirmLabel: "继续预检",
+      details: [
+        { label: "支付轨道", value: "ERC-7710 x402" },
+        { label: "金额", value: erc7710PaidPocConfig.priceLabel },
+        { label: "网络", value: "Base Sepolia" },
+        { label: "结算", value: "1Shot relay" }
+      ],
+      eyebrow: "真实付费 PoC",
+      message:
+        "这会进入真实 ERC-7710 x402 付费流程。系统会先做 SpendGuard 预检和本地结算预检，确认后才提交支付。",
+      title: "开始一次真实付费演示吗？"
+    });
     if (!confirmed) return;
 
     await runExclusive("paidPoc", async () => {
@@ -1103,9 +1144,22 @@ export function Dashboard({
         const result = await payErc7710DeepseekRiskBrief({
           advancedPermissionGrant: state.advancedPermissionGrant,
           confirmAfterPreflight(preflight) {
-            return window.confirm(
-              `本地 ERC-7710 结算预检通过，检测到 ${preflight.simulatedRedeemers.length} 个 facilitator 签名者。现在提交真实 ${erc7710PaidPocConfig.priceLabel} 结算吗？`
-            );
+            return requestConfirmation({
+              confirmLabel: "提交结算",
+              details: [
+                { label: "金额", value: erc7710PaidPocConfig.priceLabel },
+                {
+                  label: "预检结果",
+                  value: `${preflight.simulatedRedeemers.length} 个 facilitator 签名者`
+                },
+                { label: "网络", value: "Base Sepolia" },
+                { label: "结算", value: "1Shot relay" }
+              ],
+              eyebrow: "结算预检通过",
+              message:
+                "确认后会提交真实付费 header。完成后页面会写入 tx hash、payload hash 和 DeepSeek 返回结果。",
+              title: "提交真实结算吗？"
+            });
           },
           expectedAmountAtomic: erc7710PaidPocConfig.amountAtomic,
           expectedPayTo: state.policyConfig.payTo,
@@ -1160,9 +1214,7 @@ export function Dashboard({
         setPaidPocResult(result);
         paidPocFailurePhaseRef.current = null;
         setNarrative(
-          `ERC-7710 付费 PoC 已完成 ${erc7710PaidPocConfig.priceLabel} 结算。账本付款人 ${shortenAddress(
-            result.x402.payer
-          )}，交易 ${result.x402.txHash ? shortenAddress(result.x402.txHash) : "等待中"}。`
+          `ERC-7710 付费 PoC 已完成 ${erc7710PaidPocConfig.priceLabel} 结算。`
         );
       } catch (error) {
         const message =
@@ -1304,51 +1356,221 @@ export function Dashboard({
   }
 
   return (
-    <main className="app-shell">
+    <>
+    <main className="app-shell demo-page">
       <header className="topbar" aria-label="SpendGuard 控制台头部">
-        <div>
-          <p className="eyebrow">Agent SpendGuard</p>
-          <h1>面向单个 AI agent 的链上范围预算</h1>
+        <div className="brand-lockup">
+          <span className="brand-mark" aria-hidden="true" />
+          <span>Agent SpendGuard</span>
         </div>
-        <div className="status-cluster" aria-label="当前状态摘要">
-          <StatusBadge prefix="Wallet" value={state.wallet} variant="pill" />
-          <StatusBadge prefix="Policy" value={state.policy} variant="pill" />
-          <StatusBadge prefix="Permission" value={state.permission} variant="pill" />
-        </div>
+        <nav className="site-nav" aria-label="页面导航">
+          <a href="#overview">首页</a>
+          <a href="#demo">演示</a>
+          <a href="#ledger">证据</a>
+        </nav>
       </header>
 
-      <DemoCommand
-        narrative={narrative}
-        onApprove={approvePermission}
-        onConnect={connectWallet}
-        onDryRun={dryRunErc7710}
-        onOverBudget={blockOverspend}
-        onPaidPoc={runPaidErc7710Poc}
-        onReset={resetDemo}
-        onRevoke={revokePermission}
-        onRun={runAgent}
-        busyAction={busyAction}
-        dryRunControlsEnabled={dryRunControlsEnabled}
-        dryRunPreview={dryRunPreview}
-        paidPocConfig={erc7710PaidPocConfig}
-        paidPocResult={paidPocResult}
-        state={state}
-      />
+      <section className="hero-scroll-scene" id="overview" aria-label="Agent SpendGuard 介绍">
+        <div className="demo-hero">
+          <div className="demo-hero-body">
+            <div className="hero-pill-row" aria-label="核心技术标签">
+              <span className="hero-pill hero-pill-dark">
+                <span className="hero-pill-dot" aria-hidden="true" />
+                Live Demo
+              </span>
+              <span className="hero-pill">X402</span>
+              <span className="hero-pill">ERC-7710</span>
+              <span className="hero-pill">Policy Guard</span>
+            </div>
+            <h1>
+              Agent
+              <br />
+              <em>SpendGuard</em>
+            </h1>
+            <p className="hero-lede">
+              一个面向 autonomous agents 的支出守卫：先把钱包授权限制在预算和用途内，再让每次 x402 支付留下可验证、可撤销、可审计的证据。
+            </p>
+            <dl className="hero-stats-row" aria-label="Agent SpendGuard 核心指标">
+              <div>
+                <dt>授权即上限</dt>
+                <dd>1×</dd>
+              </div>
+              <div>
+                <dt>支付轨道</dt>
+                <dd>x402</dd>
+              </div>
+              <div>
+                <dt>结算即证据</dt>
+                <dd>1Shot</dd>
+              </div>
+              <div>
+                <dt>私钥暴露</dt>
+                <dd>0</dd>
+              </div>
+            </dl>
+          </div>
 
-      <section className="dashboard-grid" aria-label="SpendGuard 控制台">
-        <WalletPanel state={state} />
-        <PolicyCard remainingBudget={remaining} state={state} />
-        <PermissionPreview state={state} />
-        <AgentControls state={state} />
-        <AgentDecisionPanel state={state} />
-        <PaymentRail state={state} />
-        <ChainEvidencePanel state={state} />
-        <RelayerTimeline state={state} />
-        <VeniceResult state={state} />
-        <SpendLedger state={state} />
-        <SafetyPanel state={state} />
-        <StateContract state={state} stateEnums={STATE_ENUMS} />
+          <div className="hero-divider" aria-hidden="true" />
+          <div className="hero-tech-strip" aria-label="项目技术栈">
+            <span>MetaMask AP</span>
+            <i aria-hidden="true">·</i>
+            <span>ERC-7710</span>
+            <i aria-hidden="true">·</i>
+            <span>Base Sepolia</span>
+            <i aria-hidden="true">·</i>
+            <span>DeepSeek</span>
+            <i aria-hidden="true">·</i>
+            <span>SpendGuard</span>
+          </div>
+          <div className="hero-divider" aria-hidden="true" />
+
+          <div className="hero-feature-row" aria-label="首页能力摘要">
+            <article>
+              <span className="hero-feature-icon" aria-hidden="true">⌁</span>
+              <div>
+                <h2>预算即边界</h2>
+                <p>单次授权限定金额、用途、时间窗，agent 无权超限。</p>
+              </div>
+            </article>
+            <article>
+              <span className="hero-feature-icon" aria-hidden="true">✓</span>
+              <div>
+                <h2>策略守门</h2>
+                <p>SpendGuard 在每笔支付前实时预检，模型意图不合规即阻断。</p>
+              </div>
+            </article>
+            <article>
+              <span className="hero-feature-icon" aria-hidden="true">□</span>
+              <div>
+                <h2>链上可验证</h2>
+                <p>settlement hash、payload、AI 输出三合一，证据可追溯。</p>
+              </div>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section className="demo-showcase" id="demo" aria-label="Agent SpendGuard 演示流程">
+        <div className="demo-showcase-copy">
+          <p className="eyebrow">Live demo flow</p>
+          <h2>从一次授权，到每一笔 agent 支付都有边界。</h2>
+          <ol className="flow-rail" aria-label="演示步骤">
+            <li
+              data-state={
+                permissionStepState === "done"
+                  ? "done"
+                  : walletStepState === "done"
+                    ? "active"
+                    : walletStepState
+              }
+            >
+              <span>01</span>
+              <div>
+                <strong>授权一条预算</strong>
+                <p>MetaMask Advanced Permission 限定 Base Sepolia USDC、金额和时间窗。</p>
+              </div>
+            </li>
+            <li data-state={paymentStepState}>
+              <span>02</span>
+              <div>
+                <strong>运行一次付费调用</strong>
+                <p>SpendGuard 预检后，接收 x402 402 challenge 并构造 ERC-7710 payload。</p>
+              </div>
+            </li>
+            <li data-state={ledgerStepState}>
+              <span>03</span>
+              <div>
+                <strong>留下可验证证据</strong>
+                <p>1Shot settlement、payload hash、tx hash、DeepSeek 输出都进入证据面。</p>
+              </div>
+            </li>
+          </ol>
+        </div>
+
+        <div className="demo-operator">
+          <DemoCommand
+            narrative={narrative}
+            onApprove={approvePermission}
+            onConnect={connectWallet}
+            onOverBudget={blockOverspend}
+            onReset={resetDemo}
+            onRevoke={revokePermission}
+            onRun={runAgent}
+            busyAction={busyAction}
+            paidPocConfig={erc7710PaidPocConfig}
+            paidPocResult={paidPocResult}
+            state={state}
+          />
+        </div>
+      </section>
+
+      <section className="craft-divider craft-divider-flow" aria-label="演示和技术区过渡">
+        <div className="craft-divider-meta">
+          <span className="craft-divider-avatar" aria-hidden="true" />
+          <span>Demo note</span>
+          <i aria-hidden="true" />
+        </div>
+        <div className="craft-divider-copy">
+          <p className="eyebrow">Core stack</p>
+          <p>
+            「先跑通支付流程，再展开关键技术。」
+          </p>
+        </div>
+      </section>
+
+      <section className="demo-technology-showcase" aria-label="关键技术展示">
+        <DemoEvidenceStage
+          paidPocResult={paidPocResult}
+          remainingBudget={remainingBudget(state)}
+          state={state}
+        />
+      </section>
+
+      <section className="craft-divider craft-divider-proof" aria-label="技术和证据区过渡">
+        <div className="craft-divider-copy">
+          <p className="eyebrow">Audit surface</p>
+          <p>
+            「一次授权，一次 x402 调用，证据自然留下。」
+          </p>
+        </div>
+        <div className="craft-divider-meta">
+          <span className="craft-divider-avatar" aria-hidden="true" />
+          <span>Proof</span>
+          <i aria-hidden="true" />
+        </div>
+      </section>
+
+      <section className="proof-section" id="ledger" aria-label="账本和链上证据">
+        <div className="proof-grid">
+          <section className="proof-block" aria-label="支出账本">
+            <div className="proof-item-header">
+              <div>
+                <p className="eyebrow">支出账本</p>
+                <h2>结果留痕</h2>
+              </div>
+              <StatusBadge value={state.ledger} />
+            </div>
+            <SpendLedger state={state} />
+          </section>
+
+          <section className="proof-block" aria-label="ERC-7710 链上证明">
+            <div className="proof-item-header">
+              <div>
+                <p className="eyebrow">Chain Evidence</p>
+                <h2>ERC-7710 链上证明</h2>
+              </div>
+              <StatusBadge value={chainEvidenceStatus} />
+            </div>
+            <ChainEvidencePanel state={state} />
+          </section>
+        </div>
       </section>
     </main>
+    <ConfirmDialog
+      onCancel={() => resolveConfirmation(false)}
+      onConfirm={() => resolveConfirmation(true)}
+      options={confirmDialog}
+    />
+    </>
   );
 }

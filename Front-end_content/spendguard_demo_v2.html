@@ -1,0 +1,220 @@
+
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Noto+Serif+SC:wght@400;700&family=DM+Sans:wght@300;400;500;600&display=swap');
+  *{box-sizing:border-box;margin:0;padding:0}
+  .pg{font-family:'DM Sans',sans-serif;background:#b8c4e8;min-height:100vh;padding:40px 28px}
+  .noise{position:relative}
+  .section{max-width:980px;margin:0 auto 52px;background:rgba(255,255,255,0.2);border:0.5px solid rgba(255,255,255,0.55);border-radius:24px;padding:44px;backdrop-filter:blur(6px)}
+  .tag{font-size:10px;font-weight:600;letter-spacing:.12em;text-transform:uppercase;color:#5a6db5;margin-bottom:14px;display:block}
+  .hero{font-family:'Noto Serif SC',serif;font-size:38px;font-weight:700;line-height:1.22;color:#0f1035;margin-bottom:10px}
+  .hero-sub{font-size:13px;color:#4a5280;line-height:1.7;max-width:320px;margin-bottom:28px}
+  .steps{display:flex;flex-direction:column;gap:9px}
+  .step{display:flex;align-items:flex-start;gap:12px;background:rgba(255,255,255,0.72);border-radius:13px;padding:13px 16px;border:0.5px solid rgba(255,255,255,0.95)}
+  .snum{width:22px;height:22px;min-width:22px;background:#0f1035;color:#fff;border-radius:50%;font-size:10px;font-weight:600;display:flex;align-items:center;justify-content:center;margin-top:1px}
+  .stitle{font-size:12px;font-weight:600;color:#0f1035;margin-bottom:2px}
+  .sdesc{font-size:11px;color:#6b7aa0;line-height:1.5}
+  .two-col{display:grid;grid-template-columns:1fr 1fr;gap:22px;align-items:start}
+  .demo-card{background:rgba(255,255,255,0.88);border-radius:18px;padding:24px;border:0.5px solid rgba(255,255,255,0.98)}
+  .lbl{font-size:10px;letter-spacing:.1em;text-transform:uppercase;color:#8891b8;margin-bottom:5px}
+  .ctitle{font-size:20px;font-weight:600;color:#0f1035;margin-bottom:7px;line-height:1.3}
+  .cdesc{font-size:12px;color:#5a6490;line-height:1.6;margin-bottom:18px}
+  .dgrid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px;margin-bottom:14px}
+  .dcell{background:#f3f4f9;border-radius:9px;padding:9px 11px}
+  .dk{font-size:10px;color:#9098bb;margin-bottom:2px}
+  .dv{font-size:12px;font-weight:600;color:#0f1035}
+  .iline{font-size:11px;color:#5a6490;background:#eef0f9;border-radius:8px;padding:9px 12px;margin-bottom:14px;line-height:1.5}
+  .brow{display:flex;gap:7px;margin-bottom:7px;flex-wrap:wrap}
+  .btn{flex:1;min-width:70px;padding:8px 10px;border-radius:9px;font-size:11px;font-weight:500;border:0.5px solid rgba(0,0,0,0.1);cursor:pointer;text-align:center}
+  .bg{background:#eef0f9;color:#7880a4}
+  .bd{background:#0f1035;color:#fff;border-color:#0f1035}
+  .br{background:#fff0ef;color:#c94040;border-color:#f0c4c4}
+  .bo{background:#fff;color:#0f1035}
+  .divider{height:1px;background:rgba(255,255,255,0.4);margin:40px 0}
+  .badge{display:inline-flex;align-items:center;padding:3px 9px;border-radius:20px;font-size:10px;font-weight:500}
+  .bg-g{background:#e2f5e8;color:#2d7d46}
+  .bg-b{background:#e6effd;color:#2a5fb0}
+  .bg-o{background:#fff3e6;color:#b06020}
+  .bg-p{background:#eeedfe;color:#4a3ab0}
+  .iw{width:40px;height:40px;border-radius:11px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;font-size:18px}
+  .iw-b{background:#e6effd}
+  .iw-g{background:#e2f5e8}
+  .iw-p{background:#eeedfe}
+  .iw-a{background:#fff3e6}
+  .pbar{height:4px;background:#e4e7f5;border-radius:3px;overflow:hidden;margin:8px 0 16px}
+  .pfill{height:100%;background:#4f6de0;border-radius:3px;width:2%}
+  .kgrid{display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-bottom:10px}
+  .kcell{background:#f3f4f9;border-radius:8px;padding:9px}
+  .kk{font-size:10px;color:#9098bb;margin-bottom:2px}
+  .kv{font-size:11px;font-weight:600;color:#0f1035;line-height:1.35}
+  .cnote{font-size:10px;color:#8088aa;line-height:1.5;padding-top:9px;border-top:0.5px solid #eceef7}
+  .slist{display:flex;flex-direction:column;gap:7px;margin-bottom:14px}
+  .sitem{display:flex;align-items:flex-start;gap:9px}
+  .sdot{width:18px;height:18px;min-width:18px;background:#eef0f9;border-radius:50%;font-size:9px;font-weight:600;color:#5a6db5;display:flex;align-items:center;justify-content:center;margin-top:1px}
+  .hlink{color:#4f6de0;font-size:12px;font-weight:500}
+  .tpill{display:inline-flex;background:#eceef8;color:#5a6db5;font-size:10px;border-radius:5px;padding:3px 7px;margin:2px 2px 2px 0}
+  .anote{background:#f7f8fc;border-radius:9px;padding:10px 13px;font-size:10px;color:#5a6490;line-height:1.6;border:0.5px solid #e4e7f5}
+  .rtext{font-size:11px;color:#3d4460;line-height:1.65;margin-bottom:12px}
+  .cheader{display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:14px}
+  .four-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+  .mini-card{background:rgba(255,255,255,0.88);border-radius:18px;padding:20px;border:0.5px solid rgba(255,255,255,0.98)}
+</style>
+
+<div class="pg">
+
+  <!-- Section 1: Demo Controls -->
+  <div class="section">
+    <div class="two-col">
+      <div>
+        <span class="tag">Live Demo Flow</span>
+        <h1 class="hero">从一次授权，<br>到每一笔 agent<br>支付都有边界。</h1>
+        <p class="hero-sub">评审现场只需要看四件事：谁授权、为什么能花、怎样付费、证据在哪里。</p>
+        <div class="steps">
+          <div class="step">
+            <div class="snum">01</div>
+            <div><div class="stitle">授权一条预算</div><div class="sdesc">MetaMask Advanced Permission 限定 Base Sepolia USDC，金额和时间窗。</div></div>
+          </div>
+          <div class="step">
+            <div class="snum">02</div>
+            <div><div class="stitle">运行一次付费调用</div><div class="sdesc">SpendGuard 预检后，接收 x402 402 challenge 并构造 ERC-7710 payload。</div></div>
+          </div>
+          <div class="step">
+            <div class="snum">03</div>
+            <div><div class="stitle">留下可验证证据</div><div class="sdesc">1Shot settlement、payload hash、tx hash、DeepSeek 输出都进入证据面。</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="demo-card">
+        <div class="lbl">Demo Controls</div>
+        <div class="ctitle">现场只跑四步。</div>
+        <div class="cdesc">第 #2 次付费调用已确认。已用 0.02 USDC，剩余 0.98 USDC。交易 0x7140...bd7c 已入账。</div>
+        <div class="dgrid">
+          <div class="dcell"><div class="dk">钱包</div><div class="dv">0xe569...ee8e</div></div>
+          <div class="dcell"><div class="dk">权限</div><div class="dv">已授权</div></div>
+          <div class="dcell"><div class="dk">支付轨道</div><div class="dv">402 settled</div></div>
+          <div class="dcell"><div class="dk">策略证据</div><div class="dv">allowed / 0.01 USDC</div></div>
+          <div class="dcell"><div class="dk">已支付调用</div><div class="dv">2</div></div>
+          <div class="dcell"><div class="dk">剩余预算</div><div class="dv">0.98 USDC</div></div>
+        </div>
+        <div class="iline">运行 agent 会通过 ERC-7710 x402 支付 0.01 USDC Base Sepolia USDC。</div>
+        <div class="brow">
+          <div class="btn bg">连接钱包</div>
+          <div class="btn bg">批准权限</div>
+          <div class="btn bd">运行调用 #3</div>
+        </div>
+        <div class="brow">
+          <div class="btn bd">测试阻断</div>
+          <div class="btn br">撤销</div>
+          <div class="btn bo">重置</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Section 2: Four Cards 2x2 -->
+  <div class="section">
+    <div class="two-col">
+      <!-- Left: headline -->
+      <div>
+        <span class="tag">Live Demo Flow</span>
+        <h2 class="hero">把关键技术放进一次真实 agent 支付里。</h2>
+        <p class="hero-sub">页面只保留评委需要确认的证据面：预算是否来自 MetaMask AP，x402 是否真的返回 challenge，ERC-7710 payload 是否生成，结算和 AI 输出是否留痕。</p>
+        <div style="margin-bottom:0">
+          <span class="tpill">2 次已支付调用</span>
+          <span class="tpill">剩余 0.98 USDC</span>
+          <span class="tpill">可测试超预算阻断</span>
+        </div>
+      </div>
+
+      <!-- Right: 2x2 grid of four cards -->
+      <div class="four-grid">
+
+        <!-- Card A: MetaMask AP -->
+        <div class="mini-card">
+          <div class="cheader">
+            <div class="iw iw-b"><i class="ti ti-wallet" aria-hidden="true" style="color:#4f6de0;font-size:18px"></i></div>
+            <span class="badge bg-g">已授权</span>
+          </div>
+          <div class="lbl">预算策略</div>
+          <div style="font-size:14px;font-weight:600;color:#0f1035;margin-bottom:8px;line-height:1.3">MetaMask AP 给 agent 一条小预算</div>
+          <div style="display:flex;gap:16px;font-size:11px;color:#5a6490;margin-bottom:3px">
+            <span>已用 <strong style="color:#0f1035">0.02 USDC</strong></span>
+            <span>剩余 <strong style="color:#0f1035">0.98 USDC</strong></span>
+          </div>
+          <div class="pbar"><div class="pfill"></div></div>
+          <div class="kgrid">
+            <div class="kcell"><div class="kk">预算上限</div><div class="kv">1.00 USDC</div></div>
+            <div class="kcell"><div class="kk">单次价格</div><div class="kv">0.01 USDC</div></div>
+            <div class="kcell"><div class="kk">允许用途</div><div class="kv">DeepSeek 风险简报</div></div>
+            <div class="kcell"><div class="kk">时间窗口</div><div class="kv">24 小时</div></div>
+          </div>
+          <div class="anote">非无限 approval，也不把私钥交给 agent。</div>
+        </div>
+
+        <!-- Card B: Agent Decision -->
+        <div class="mini-card">
+          <div class="cheader">
+            <div class="iw iw-g"><i class="ti ti-shield-check" aria-hidden="true" style="color:#2d7d46;font-size:18px"></i></div>
+            <span class="badge bg-b">已允许</span>
+          </div>
+          <div class="lbl">Agent 决策</div>
+          <div style="font-size:14px;font-weight:600;color:#0f1035;margin-bottom:8px;line-height:1.3">模型先说要花，SpendGuard 再放行</div>
+          <div style="font-size:12px;font-weight:600;color:#0f1035;margin-bottom:6px">支出 / 已允许</div>
+          <p class="rtext">The AI risk brief directly fulfils the user goal of checking wallet risk, and the cost is within the remaining budget.</p>
+          <div class="kgrid">
+            <div class="kcell"><div class="kk">估算成本</div><div class="kv">0.01 USDC</div></div>
+            <div class="kcell"><div class="kk">策略结果</div><div class="kv">已允许</div></div>
+            <div class="kcell"><div class="kk">检查范围</div><div class="kv" style="font-size:10px;line-height:1.4">budget / endpoint / token / network / payTo</div></div>
+            <div class="kcell"><div class="kk">超预算</div><div class="kv">待测试</div></div>
+          </div>
+        </div>
+
+        <!-- Card C: ERC-7710 -->
+        <div class="mini-card">
+          <div class="cheader">
+            <div class="iw iw-a"><i class="ti ti-credit-card" aria-hidden="true" style="color:#b06020;font-size:18px"></i></div>
+            <span class="badge bg-b">已支付</span>
+          </div>
+          <div class="lbl">X402 支付轨道</div>
+          <div style="font-size:14px;font-weight:600;color:#0f1035;margin-bottom:10px;line-height:1.3">402 challenge 到 ERC-7710 payment payload</div>
+          <div class="slist">
+            <div class="sitem"><div class="sdot">01</div><div style="font-size:11px;color:#3d4460">402 settled</div></div>
+            <div class="sitem"><div class="sdot">02</div><div style="font-size:11px;color:#3d4460">ERC-7710 payload 0xc1ee...90bd</div></div>
+            <div class="sitem"><div class="sdot">03</div><div style="font-size:11px;color:#3d4460">已结算</div></div>
+            <div class="sitem"><div class="sdot">04</div><div style="font-size:11px;color:#3d4460">settlement recorded</div></div>
+          </div>
+          <div class="kgrid">
+            <div class="kcell"><div class="kk">Scheme</div><div class="kv">exact</div></div>
+            <div class="kcell"><div class="kk">Transfer</div><div class="kv">erc7710</div></div>
+            <div class="kcell"><div class="kk">Amount</div><div class="kv">10000 atomic USDC</div></div>
+            <div class="kcell"><div class="kk">Resource</div><div class="kv" style="font-size:9px;line-height:1.4">/x402/deepseek/risk-brief/erc7710-paid-poc</div></div>
+          </div>
+          <div class="cnote">child caveats: limitedCalls, valueLte, allowedTargets, allowedMethods, timestamp, erc20TransferAmount.</div>
+        </div>
+
+        <!-- Card D: 1Shot Settlement -->
+        <div class="mini-card">
+          <div class="cheader">
+            <div class="iw iw-p"><i class="ti ti-clipboard-check" aria-hidden="true" style="color:#4a3ab0;font-size:18px"></i></div>
+            <span class="badge bg-g">有成功记录</span>
+          </div>
+          <div class="lbl">结算证据</div>
+          <div style="font-size:14px;font-weight:600;color:#0f1035;margin-bottom:10px;line-height:1.3">1Shot 结算后才拿 DeepSeek 风险简报</div>
+          <div class="kgrid">
+            <div class="kcell"><div class="kk">Settlement tx</div><div class="kv"><span style="color:#4f6de0">0x7140...bd7c</span></div></div>
+            <div class="kcell"><div class="kk">Payload hash</div><div class="kv">0xc1ee...90bd</div></div>
+            <div class="kcell"><div class="kk">DelegationManager</div><div class="kv">0xdb9B...7dB3</div></div>
+            <div class="kcell"><div class="kk">Redeem selector</div><div class="kv">0xcef6d209</div></div>
+            <div class="kcell"><div class="kk">Relay fee</div><div class="kv">0.010626 USDC</div></div>
+            <div class="kcell"><div class="kk">AI provider</div><div class="kv">DeepSeek 简报已返回</div></div>
+          </div>
+          <div style="margin-top:10px">
+            <div style="font-size:12px;font-weight:600;color:#0f1035;margin-bottom:5px">钱包风险简报</div>
+            <p style="font-size:10px;color:#5a6490;line-height:1.6">基于提供的支付凭证与预算信息，未拉取完整历史交易数据，仅对本次支付进行审慎评估。</p>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+</div>

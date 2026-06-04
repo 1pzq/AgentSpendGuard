@@ -62,7 +62,14 @@ export function normalizeOneShotStatus(
 
   if (
     normalized === "confirmed" ||
+    normalized === "complete" ||
+    normalized === "completed" ||
+    normalized === "done" ||
+    normalized === "executed" ||
+    normalized === "finalized" ||
+    normalized === "mined" ||
     normalized === "success" ||
+    normalized === "succeeded" ||
     normalized === "200"
   ) {
     return {

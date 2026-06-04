@@ -1,5 +1,5 @@
 import type { SpendGuardDemoState } from "@/shared/types";
-import { formatStateLabel, StatusBadge } from "./StatusBadge";
+import { formatStateLabel } from "./StatusBadge";
 
 type SpendLedgerProps = {
   state: SpendGuardDemoState;
@@ -39,47 +39,32 @@ export function SpendLedger({ state }: SpendLedgerProps) {
 
   return (
     <article className="panel ledger-panel">
-      <div className="panel-header">
-        <div>
-          <p className="eyebrow">支出账本</p>
-          <h2>可观察的 agent 支出</h2>
-        </div>
-        <StatusBadge value={state.ledger} />
-      </div>
       <div className="ledger-table" role="table" aria-label="支出账本">
         <div className="ledger-row ledger-head" role="row">
-          <span role="columnheader">时间</span>
-          <span role="columnheader">服务</span>
-          <span role="columnheader">记账</span>
+          <span role="columnheader">调用</span>
+          <span role="columnheader">花费</span>
           <span role="columnheader">证明</span>
           <span role="columnheader">状态</span>
         </div>
         {rows.map((entry) => (
           <div className="ledger-row" key={entry.id}>
-            <span>{entry.time}</span>
-            <span>{entry.service}</span>
+            <span className="ledger-call">
+              <strong>
+                {entry.callNumber ? `#${entry.callNumber}` : entry.service}
+              </strong>
+              <span>{entry.time}</span>
+            </span>
             <span className="ledger-accounting">
-              <span>服务 {entry.serviceCost}</span>
-              <span>中继 {entry.relayFee}</span>
-              <span>钱包 {entry.totalWalletDebit}</span>
-              <span>预算 {entry.budgetConsumed}</span>
+              <span>{entry.serviceCost}</span>
+              <span>剩余 {entry.remainingAfter}</span>
             </span>
             <span className="ledger-proof">
-              {entry.payloadContextHash ? (
-                <span>payload {shortenHex(entry.payloadContextHash)}</span>
-              ) : entry.status === "blocked" ? (
-                <span>未提交付费 header</span>
-              ) : (
-                <span>等待 payload</span>
-              )}
-              <span>交易 {shortenHex(entry.txHash)}</span>
-              <span>剩余 {entry.remainingAfter}</span>
-              {entry.agentDecision ? (
-                <span>
-                  AI {formatStateLabel(entry.agentDecision.decision)}：
-                  {entry.agentDecision.reason}
-                </span>
-              ) : null}
+              <span>
+                {entry.status === "blocked"
+                  ? "未提交 paid header"
+                  : `tx ${shortenHex(entry.txHash)}`}
+              </span>
+              <span>payload {shortenHex(entry.payloadContextHash)}</span>
             </span>
             <span>
               <span className={`ledger-status ${entry.status}`}>

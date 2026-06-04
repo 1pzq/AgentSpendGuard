@@ -42,7 +42,7 @@ export function PolicyCard({ remainingBudget, state }: PolicyCardProps) {
       <div className="panel-header">
         <div>
           <p className="eyebrow">预算策略</p>
-          <h2>{policyConfig.service} 风险简报 agent</h2>
+          <h2>给 agent 一条小预算</h2>
         </div>
         <StatusBadge value={state.policy} />
       </div>
@@ -59,7 +59,7 @@ export function PolicyCard({ remainingBudget, state }: PolicyCardProps) {
           />
         </div>
       </div>
-      <dl className="detail-list two-col">
+      <dl className="accounting-strip policy-summary-strip" aria-label="预算摘要">
         <div>
           <dt>预算上限</dt>
           <dd>{policyConfig.maxSpend.toFixed(2)} {policyConfig.token}</dd>
@@ -69,51 +69,25 @@ export function PolicyCard({ remainingBudget, state }: PolicyCardProps) {
           <dd>{accounting.servicePrice}</dd>
         </div>
         <div>
-          <dt>有效窗口</dt>
-          <dd>{policyConfig.windowHours} 小时</dd>
+          <dt>允许用途</dt>
+          <dd>{policyConfig.service} 风险简报</dd>
         </div>
         <div>
-          <dt>作用范围</dt>
-          <dd>仅限 {policyConfig.service}</dd>
-        </div>
-      </dl>
-      <dl className="accounting-strip" aria-label="预算边界">
-        <div>
-          <dt>本地 agent 预算余额</dt>
-          <dd>{accounting.remainingBudget}</dd>
-        </div>
-        <div>
-          <dt>链上 permission 可用额度</dt>
+          <dt>链上可用</dt>
           <dd>{onchainAmountCopy(state)}</dd>
         </div>
         <div>
-          <dt>链上来源</dt>
-          <dd>ERC20PeriodTransferEnforcer</dd>
+          <dt>时间窗口</dt>
+          <dd>{policyConfig.windowHours} 小时</dd>
         </div>
         <div>
           <dt>链上状态</dt>
           <dd>{onchainDetailCopy(state)}</dd>
         </div>
       </dl>
-      <dl className="accounting-strip" aria-label="预算记账">
-        <div>
-          <dt>x402 服务价</dt>
-          <dd>{accounting.servicePrice}</dd>
-        </div>
-        <div>
-          <dt>中继费</dt>
-          <dd>{accounting.relayFee}</dd>
-        </div>
-        <div>
-          <dt>钱包扣款</dt>
-          <dd>{accounting.totalWalletDebit}</dd>
-        </div>
-        <div>
-          <dt>预算消耗</dt>
-          <dd>{accounting.agentBudgetConsumed}</dd>
-        </div>
-      </dl>
-      <p className="accounting-note">{accounting.policyNote}</p>
+      <p className="accounting-note">
+        预算只计算 x402 服务价；钱包扣款细节会写入账本。
+      </p>
     </article>
   );
 }

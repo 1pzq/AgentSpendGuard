@@ -1,0 +1,131 @@
+
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
+*{box-sizing:border-box;margin:0;padding:0}
+.hero-wrap{background:#F2EDE3;font-family:'Inter',sans-serif;padding:0 0 0 0;width:100%}
+.nav{display:flex;align-items:center;justify-content:space-between;padding:16px 32px;background:rgba(242,237,227,0.92);border-bottom:0.5px solid rgba(0,0,0,0.07)}
+.nav-brand{display:flex;align-items:center;gap:10px;font-size:15px;font-weight:600;color:#1a1a1a}
+.nav-logo{width:28px;height:28px;border-radius:50%;background:#1a1a1a;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.nav-links{display:flex;gap:28px;font-size:14px;color:#6b6b6b;font-weight:400}
+.hero-body{padding:72px 32px 80px;text-align:center;max-width:860px;margin:0 auto}
+.pill-row{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:36px;flex-wrap:wrap}
+.pill{display:inline-flex;align-items:center;gap:6px;padding:5px 13px;border-radius:20px;font-size:11px;font-weight:500;letter-spacing:.04em;border:0.5px solid}
+.pill-dark{background:#1a1a1a;color:#f2ede3;border-color:#1a1a1a}
+.pill-out{background:transparent;color:#5a5a5a;border-color:rgba(0,0,0,0.18)}
+.pill-dot{width:6px;height:6px;border-radius:50%;background:#e05c30;flex-shrink:0}
+.hero-h1{font-size:72px;font-weight:900;line-height:1.0;letter-spacing:-0.03em;color:#0f0f0f;margin-bottom:28px}
+.hero-h1 em{font-style:normal;color:#e05c30}
+.hero-sub{font-size:16px;color:#5a5a5a;line-height:1.75;max-width:560px;margin:0 auto 44px;font-weight:400}
+.hero-cta-row{display:flex;align-items:center;justify-content:center;gap:12px;margin-bottom:64px}
+.cta-main{background:#0f0f0f;color:#f2ede3;padding:12px 26px;border-radius:10px;font-size:14px;font-weight:500;border:none;cursor:pointer;display:flex;align-items:center;gap:8px}
+.cta-sec{background:transparent;color:#0f0f0f;padding:12px 26px;border-radius:10px;font-size:14px;font-weight:400;border:0.5px solid rgba(0,0,0,0.22);cursor:pointer}
+.stats-row{display:flex;align-items:center;justify-content:center;gap:0}
+.stat-item{padding:0 32px;text-align:center;border-right:0.5px solid rgba(0,0,0,0.12)}
+.stat-item:last-child{border-right:none}
+.stat-num{font-size:24px;font-weight:700;color:#0f0f0f;letter-spacing:-0.02em}
+.stat-label{font-size:11px;color:#8a8a8a;margin-top:3px;font-weight:400}
+.hero-divider{height:1px;background:rgba(0,0,0,0.08);margin:0 32px}
+.tech-strip{display:flex;align-items:center;justify-content:center;gap:6px;padding:18px 32px;flex-wrap:wrap}
+.tech-tag{font-size:11px;font-weight:500;color:#7a7a7a;letter-spacing:.08em;text-transform:uppercase}
+.tech-sep{color:#c0bab0;font-size:11px}
+.feature-row{display:grid;grid-template-columns:repeat(3,1fr);gap:0;border-top:0.5px solid rgba(0,0,0,0.08)}
+.feature-cell{padding:24px 28px;border-right:0.5px solid rgba(0,0,0,0.08);display:flex;align-items:flex-start;gap:12px}
+.feature-cell:last-child{border-right:none}
+.feat-icon{width:32px;height:32px;min-width:32px;border-radius:8px;background:#f5f0e8;border:0.5px solid rgba(0,0,0,0.1);display:flex;align-items:center;justify-content:center;color:#4a4a4a;font-size:15px}
+.feat-title{font-size:13px;font-weight:600;color:#1a1a1a;margin-bottom:3px}
+.feat-desc{font-size:12px;color:#7a7a7a;line-height:1.5}
+</style>
+
+<div class="hero-wrap">
+  <nav class="nav">
+    <div class="nav-brand">
+      <div class="nav-logo">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none"><circle cx="8" cy="8" r="6" fill="#e05c30"/><path d="M5 8.5 L7.5 11 L11 5.5" stroke="#f2ede3" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      </div>
+      Agent SpendGuard
+    </div>
+    <div class="nav-links">
+      <span>首页</span>
+      <span>演示</span>
+      <span>证据</span>
+    </div>
+  </nav>
+
+  <div class="hero-body">
+    <div class="pill-row">
+      <span class="pill pill-dark"><span class="pill-dot"></span>Live Demo</span>
+      <span class="pill pill-out">X402</span>
+      <span class="pill pill-out">ERC-7710</span>
+      <span class="pill pill-out">Policy Guard</span>
+    </div>
+
+    <h1 class="hero-h1">Agent<br><em>SpendGuard</em></h1>
+
+    <p class="hero-sub">一个面向 autonomous agents 的支出守卫：先把钱包授权限制在预算和用途内，再让每次 x402 支付留下可验证、可撤销、可审计的证据。</p>
+
+    <div class="hero-cta-row">
+      <button class="cta-main">
+        <i class="ti ti-player-play" aria-hidden="true" style="font-size:13px"></i>
+        查看演示
+      </button>
+      <button class="cta-sec">了解证据</button>
+    </div>
+
+    <div class="stats-row">
+      <div class="stat-item">
+        <div class="stat-num">1×</div>
+        <div class="stat-label">授权即上限</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">x402</div>
+        <div class="stat-label">支付轨道</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">1Shot</div>
+        <div class="stat-label">结算即证据</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-num">0</div>
+        <div class="stat-label">私钥暴露</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="hero-divider"></div>
+  <div class="tech-strip">
+    <span class="tech-tag">MetaMask AP</span>
+    <span class="tech-sep">·</span>
+    <span class="tech-tag">ERC-7710</span>
+    <span class="tech-sep">·</span>
+    <span class="tech-tag">Base Sepolia</span>
+    <span class="tech-sep">·</span>
+    <span class="tech-tag">DeepSeek</span>
+    <span class="tech-sep">·</span>
+    <span class="tech-tag">SpendGuard</span>
+  </div>
+  <div class="hero-divider"></div>
+
+  <div class="feature-row">
+    <div class="feature-cell">
+      <div class="feat-icon"><i class="ti ti-lock" aria-hidden="true"></i></div>
+      <div>
+        <div class="feat-title">预算即边界</div>
+        <div class="feat-desc">单次授权限定金额、用途、时间窗，agent 无权超限。</div>
+      </div>
+    </div>
+    <div class="feature-cell">
+      <div class="feat-icon"><i class="ti ti-shield-check" aria-hidden="true"></i></div>
+      <div>
+        <div class="feat-title">策略守门</div>
+        <div class="feat-desc">SpendGuard 在每笔支付前实时预检，模型意图不合规即阻断。</div>
+      </div>
+    </div>
+    <div class="feature-cell">
+      <div class="feat-icon"><i class="ti ti-file-check" aria-hidden="true"></i></div>
+      <div>
+        <div class="feat-title">链上可验证</div>
+        <div class="feat-desc">settlement hash、payload、AI 输出三合一，证据不可篡改。</div>
+      </div>
+    </div>
+  </div>
+</div>

@@ -4,7 +4,8 @@ import "./globals.css";
 
 export const metadata: Metadata = {
   title: "Agent SpendGuard",
-  description: "Agent SpendGuard 本地演示应用。"
+  description:
+    "Agent SpendGuard 让 AI Agent 在可撤销预算内完成 x402 API 支付，主钱包保持隔离。"
 };
 
 export default function RootLayout({

@@ -1,7 +1,6 @@
 import type { SpendGuardDemoState } from "@/shared/types";
-import type { Erc7710DryRunPreview } from "@/client/x402/dryRunErc7710Payment";
 import type { PaidErc7710RiskBriefData } from "@/client/x402/payErc7710DeepseekRiskBrief";
-import { StatusBadge } from "./StatusBadge";
+import { formatStateLabel, StatusBadge } from "./StatusBadge";
 
 type PaidPocConfig = {
   amountAtomic: string;
@@ -14,14 +13,10 @@ type AgentControlsProps = {
   narrative: string;
   onApprove: () => void;
   onConnect: () => void;
-  onDryRun: () => void;
   onOverBudget: () => void;
-  onPaidPoc: () => void;
   onReset: () => void;
   onRevoke: () => void;
   onRun: () => void;
-  dryRunControlsEnabled: boolean;
-  dryRunPreview: Erc7710DryRunPreview | null;
   paidPocConfig: PaidPocConfig;
   paidPocResult: PaidErc7710RiskBriefData | null;
   state: SpendGuardDemoState;
@@ -110,16 +105,33 @@ function shortenHex(value: string) {
   return `${value.slice(0, 6)}...${value.slice(-4)}`;
 }
 
+function x402StatusCopy(state: SpendGuardDemoState) {
+  const { challengeStatus, paymentHeaderStatus } = state.x402Evidence;
+
+  if (challengeStatus === "settled" || paymentHeaderStatus === "settled") {
+    return "402 settled";
+  }
+  if (paymentHeaderStatus === "submitted") return "paid header submitted";
+  if (challengeStatus === "received_402") return "402 received";
+  if (state.payment === "blocked") return "blocked before header";
+  return "waiting for 402";
+}
+
+function policyEvidenceCopy(state: SpendGuardDemoState) {
+  if (state.agentDecision) {
+    return `${state.agentDecision.policyCheck} / ${state.agentDecision.estimatedCost}`;
+  }
+  if (state.payment === "blocked") return "denied / no paid header";
+  if (state.policy === "active") return "policy active";
+  return "waiting precheck";
+}
+
 export function DemoCommand({
   busyAction,
-  dryRunControlsEnabled,
-  dryRunPreview,
   narrative,
   onApprove,
   onConnect,
-  onDryRun,
   onOverBudget,
-  onPaidPoc,
   onReset,
   onRevoke,
   onRun,
@@ -128,8 +140,6 @@ export function DemoCommand({
   state
 }: AgentControlsProps) {
   const showFallbackNote = state.wallet === "unsupported";
-  const showDryRunControls = dryRunControlsEnabled;
-  const showPaidPocControls = paidPocConfig.enabled;
   const busy = busyAction !== null;
   const paidCalls = state.ledgerEntries.filter(
     (entry) => entry.status === "success" || entry.status === "paid_ai_failed"
@@ -148,115 +158,53 @@ export function DemoCommand({
     state.policy === "active" &&
     (state.permission === "approved" || state.permission === "redeemed") &&
     hasAdvancedGrant;
-  const canDryRun =
-    showDryRunControls &&
-    canUseStoredGrant;
-  const canPaidPoc =
-    showPaidPocControls &&
-    canUseStoredGrant;
+  const walletCopy = state.walletInfo.eoa
+    ? shortenHex(state.walletInfo.eoa)
+    : formatStateLabel(state.wallet);
 
   return (
     <section className="demo-command" aria-label="演示控制">
       <div className="command-copy">
-        <h2>演示操作台</h2>
+        <p className="eyebrow">Demo controls</p>
         <p>{narrative}</p>
-        {hasAdvancedGrant ? (
-          <dl className="multi-run-strip" aria-label="Advanced Permission 复用">
-            <div>
-              <dt>授权次数</dt>
-              <dd>1</dd>
-            </div>
-            <div>
-              <dt>已支付调用</dt>
-              <dd>{paidCalls}</dd>
-            </div>
-            <div>
-              <dt>下次调用</dt>
-              <dd>#{nextPaidCall}</dd>
-            </div>
-            <div>
-              <dt>剩余预算</dt>
-              <dd>
-                {remainingBudget.toFixed(2)} {state.policyConfig.token}
-              </dd>
-            </div>
-          </dl>
-        ) : null}
-        {showPaidPocControls && !paidPocResult ? (
-          <p className="paid-poc-note">
-            ERC-7710 支付会在 Base Sepolia 上花费 {paidPocConfig.priceLabel}。
-          </p>
-        ) : null}
+        <dl className="operator-summary" aria-label="演示状态摘要">
+          <div>
+            <dt>钱包</dt>
+            <dd>{walletCopy}</dd>
+          </div>
+          <div>
+            <dt>权限</dt>
+            <dd>{formatStateLabel(state.permission)}</dd>
+          </div>
+          <div>
+            <dt>支付轨道</dt>
+            <dd>{x402StatusCopy(state)}</dd>
+          </div>
+          <div>
+            <dt>策略证据</dt>
+            <dd>{policyEvidenceCopy(state)}</dd>
+          </div>
+          <div>
+            <dt>已支付调用</dt>
+            <dd>{paidCalls}</dd>
+          </div>
+          <div>
+            <dt>剩余预算</dt>
+            <dd>
+              {remainingBudget.toFixed(2)} {state.policyConfig.token}
+            </dd>
+          </div>
+        </dl>
         {showFallbackNote ? (
           <p role="note">
             静态原型：<code>prototype/index.html</code>。模拟 API 仍由服务端守护；真实授权必须在连接成功后才能启用。
           </p>
         ) : null}
-        {showDryRunControls && dryRunPreview ? (
-          <details className="dry-run-result" open>
-            <summary>ERC-7710 dry-run 预览</summary>
-            <dl className="detail-list two-col" aria-label="ERC-7710 dry-run 结果">
-              <div>
-                <dt>支付要求</dt>
-                <dd>
-                  {dryRunPreview.requirement.amountAtomic} atomic USDC 到{" "}
-                  {shortenHex(dryRunPreview.requirement.payTo)}
-                </dd>
-              </div>
-              <div>
-                <dt>授权人</dt>
-                <dd>{shortenHex(dryRunPreview.payload.delegator)}</dd>
-              </div>
-              <div>
-                <dt>Payload 哈希</dt>
-                <dd>
-                  {dryRunPreview.payloadProof.permissionContextHash
-                    ? shortenHex(dryRunPreview.payloadProof.permissionContextHash)
-                    : "未记录"}
-                </dd>
-              </div>
-              <div>
-                <dt>子 target</dt>
-                <dd>
-                  {dryRunPreview.payloadProof.childDelegationTarget
-                    ? shortenHex(dryRunPreview.payloadProof.childDelegationTarget)
-                    : "未记录"}
-                </dd>
-              </div>
-              <div>
-                <dt>验证</dt>
-                <dd>
-                  {dryRunPreview.payloadProof.localPayloadMatchesGrant
-                    ? "Payload 与授权匹配"
-                    : "未验证"}
-                </dd>
-              </div>
-              <div>
-                <dt>无支出保护</dt>
-                <dd>
-                  {dryRunPreview.safeguards.paymentSignatureHeaderSubmitted
-                    ? "header 已提交"
-                    : "未发送支付 header"}
-                </dd>
-              </div>
-            </dl>
-          </details>
-        ) : null}
-        {showPaidPocControls && paidPocResult ? (
-          <details className="paid-poc-result" open>
-            <summary>ERC-7710 支付结果</summary>
-            <dl className="detail-list two-col" aria-label="ERC-7710 支付结果">
+        {paidPocResult ? (
+          <dl className="settlement-strip" aria-label="ERC-7710 支付结果">
               <div>
                 <dt>金额</dt>
                 <dd>{paidPocResult.x402.amountAtomic} atomic USDC</dd>
-              </div>
-              <div>
-                <dt>付款人</dt>
-                <dd>{shortenHex(paidPocResult.x402.payer)}</dd>
-              </div>
-              <div>
-                <dt>收款地址</dt>
-                <dd>{shortenHex(paidPocResult.x402.payTo)}</dd>
               </div>
               <div>
                 <dt>交易 hash</dt>
@@ -288,8 +236,7 @@ export function DemoCommand({
                       : "未记录"}
                 </dd>
               </div>
-            </dl>
-          </details>
+          </dl>
         ) : null}
       </div>
       <div className="button-row">
@@ -316,26 +263,14 @@ export function DemoCommand({
             ? "运行中..."
             : paidCalls > 0
               ? `运行调用 #${nextPaidCall}`
-              : "运行 Autonomous Agent"}
+              : "运行 Agent"}
         </button>
-        {showDryRunControls ? (
-          <button disabled={busy || !canDryRun} onClick={onDryRun} type="button">
-            {busyAction === "dryRun" ? "预览中..." : "7710 预演"}
-          </button>
-        ) : null}
-        {showPaidPocControls ? (
-          <button disabled={busy || !canPaidPoc} onClick={onPaidPoc} type="button">
-            {busyAction === "paidPoc"
-              ? "支付中..."
-              : `支付 ${paidPocConfig.priceLabel} 7710 #${nextPaidCall}`}
-          </button>
-        ) : null}
         <button
           disabled={busy || !(state.policy === "active" && state.payment === "paid")}
           onClick={onOverBudget}
           type="button"
         >
-          {busyAction === "overBudget" ? "检查中..." : "尝试超预算"}
+          {busyAction === "overBudget" ? "检查中..." : "测试阻断"}
         </button>
         <button
           className="danger"

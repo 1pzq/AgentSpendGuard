@@ -298,7 +298,7 @@ export const spendguardConfig = {
     feeCollector: oneShotFeeCollector ?? null,
     targetAddress: oneShotTargetAddress ?? null,
     realCallsEnabled: oneShotRealCallsEnabled,
-    statusMaxPolls: readPositiveIntegerEnv("ONESHOT_STATUS_MAX_POLLS", 12),
+    statusMaxPolls: readPositiveIntegerEnv("ONESHOT_STATUS_MAX_POLLS", 48),
     statusPollMs: readPositiveIntegerEnv("ONESHOT_STATUS_POLL_MS", 2_500),
     apiKeyConfigured: oneShotApiKeyConfigured,
     apiSecretConfigured: oneShotApiSecretConfigured,
