@@ -133,7 +133,7 @@ const ERC7710_RUN_STAGE_COPY: Record<Erc7710PaidPocStage, string> = {
     "提交支付前正在本地模拟 ERC-7710 结算。",
   submitting_paid_request:
     "正在用会话权限提交 ERC-7710 付费请求。",
-  settling: "正在验证 ERC-7710 结算并刷新支出账本。"
+  settling: "付费请求已提交，正在等待 1Shot 结算、DeepSeek 返回和账本确认。"
 };
 
 const ERC7710_PAID_POC_STAGE_COPY: Record<Erc7710PaidPocStage, string> = {
@@ -143,7 +143,7 @@ const ERC7710_PAID_POC_STAGE_COPY: Record<Erc7710PaidPocStage, string> = {
   preflighting_settlement:
     "提交到 facilitator 前正在本地模拟 ERC-7710 结算。",
   submitting_paid_request: "正在提交 0.01 USDC 的 ERC-7710 付费请求。",
-  settling: "正在验证 ERC-7710 结算并刷新支出账本。"
+  settling: "付费请求已提交，正在等待 1Shot 结算、DeepSeek 返回和账本确认。"
 };
 
 type WalletFailureStatus = Extract<
@@ -1360,7 +1360,7 @@ export function Dashboard({
     <main className="app-shell demo-page">
       <header className="topbar" aria-label="SpendGuard 控制台头部">
         <div className="brand-lockup">
-          <span className="brand-mark" aria-hidden="true" />
+          <img className="brand-mark" src="/loge.svg" alt="" />
           <span>Agent SpendGuard</span>
         </div>
         <nav className="site-nav" aria-label="页面导航">
@@ -1447,124 +1447,240 @@ export function Dashboard({
               </div>
             </article>
           </div>
+          <div className="hero-sticker-cloud" aria-hidden="true">
+            <img className="hero-sticker hero-sticker-moon" src="/illustrations/sticker-7.png" alt="" />
+            <img className="hero-sticker hero-sticker-fishbone" src="/illustrations/sticker-8.png" alt="" />
+            <img className="hero-sticker hero-sticker-sleep" src="/illustrations/sticker-6.png" alt="" />
+          </div>
         </div>
       </section>
 
-      <section className="demo-showcase" id="demo" aria-label="Agent SpendGuard 演示流程">
-        <div className="demo-showcase-copy">
-          <p className="eyebrow">Live demo flow</p>
-          <h2>从一次授权，到每一笔 agent 支付都有边界。</h2>
-          <ol className="flow-rail" aria-label="演示步骤">
-            <li
-              data-state={
-                permissionStepState === "done"
-                  ? "done"
-                  : walletStepState === "done"
-                    ? "active"
-                    : walletStepState
-              }
-            >
-              <span>01</span>
-              <div>
-                <strong>授权一条预算</strong>
-                <p>MetaMask Advanced Permission 限定 Base Sepolia USDC、金额和时间窗。</p>
-              </div>
-            </li>
-            <li data-state={paymentStepState}>
-              <span>02</span>
-              <div>
-                <strong>运行一次付费调用</strong>
-                <p>SpendGuard 预检后，接收 x402 402 challenge 并构造 ERC-7710 payload。</p>
-              </div>
-            </li>
-            <li data-state={ledgerStepState}>
-              <span>03</span>
-              <div>
-                <strong>留下可验证证据</strong>
-                <p>1Shot settlement、payload hash、tx hash、DeepSeek 输出都进入证据面。</p>
-              </div>
-            </li>
-          </ol>
+      <div className="demo-white-band">
+        <div className="cat-boundary" aria-hidden="true">
+          <svg
+            className="cat-boundary-wave"
+            viewBox="0 0 1440 190"
+            preserveAspectRatio="none"
+          >
+            <path
+              d="M0 102 C185 74 314 134 474 108 C644 81 759 70 924 102 C1094 135 1246 80 1440 104 L1440 190 L0 190 Z"
+              fill="#fffdf9"
+            />
+            <path
+              d="M0 102 C185 74 314 134 474 108 C644 81 759 70 924 102 C1094 135 1246 80 1440 104"
+              fill="none"
+              stroke="rgba(22, 22, 22, 0.06)"
+              strokeWidth="2"
+            />
+          </svg>
+          <div className="cat-boundary-row">
+            {[1, 2, 3, 4].map((cat) => (
+              <img
+                className={`boundary-cat boundary-cat-${cat}`}
+                key={cat}
+                src={`/cats/cat-${cat}.png`}
+                alt=""
+              />
+            ))}
+          </div>
         </div>
+        <section className="demo-showcase" id="demo" aria-label="Agent SpendGuard 演示流程">
+          <div className="showcase-stickers" aria-hidden="true">
+            <img className="showcase-sticker showcase-sticker-duck" src="/illustrations/sticker-9.png" alt="" />
+            <img className="showcase-sticker showcase-sticker-fishbone" src="/illustrations/sticker-8.png" alt="" />
+          </div>
+          <div className="demo-showcase-copy">
+            <p className="eyebrow">Live demo flow</p>
+            <h2>从一次授权，到每一笔 agent 支付都有边界。</h2>
+            <ol className="flow-rail" aria-label="演示步骤">
+              <li
+                data-state={
+                  permissionStepState === "done"
+                    ? "done"
+                    : walletStepState === "done"
+                      ? "active"
+                      : walletStepState
+                }
+              >
+                <span>01</span>
+                <div>
+                  <strong>授权一条预算</strong>
+                  <p>MetaMask Advanced Permission 限定 Base Sepolia USDC、金额和时间窗。</p>
+                </div>
+              </li>
+              <li data-state={paymentStepState}>
+                <span>02</span>
+                <div>
+                  <strong>运行一次付费调用</strong>
+                  <p>SpendGuard 预检后，接收 x402 402 challenge 并构造 ERC-7710 payload。</p>
+                </div>
+              </li>
+              <li data-state={ledgerStepState}>
+                <span>03</span>
+                <div>
+                  <strong>留下可验证证据</strong>
+                  <p>1Shot settlement、payload hash、tx hash、DeepSeek 输出都进入证据面。</p>
+                </div>
+              </li>
+            </ol>
+          </div>
 
-        <div className="demo-operator">
-          <DemoCommand
-            narrative={narrative}
-            onApprove={approvePermission}
-            onConnect={connectWallet}
-            onOverBudget={blockOverspend}
-            onReset={resetDemo}
-            onRevoke={revokePermission}
-            onRun={runAgent}
-            busyAction={busyAction}
-            paidPocConfig={erc7710PaidPocConfig}
+          <div className="demo-operator">
+            <DemoCommand
+              narrative={narrative}
+              onApprove={approvePermission}
+              onConnect={connectWallet}
+              onOverBudget={blockOverspend}
+              onReset={resetDemo}
+              onRevoke={revokePermission}
+              onRun={runAgent}
+              busyAction={busyAction}
+              paidPocConfig={erc7710PaidPocConfig}
+              paidPocResult={paidPocResult}
+              state={state}
+            />
+          </div>
+        </section>
+      </div>
+
+      <div className="demo-paper-band">
+        <section className="craft-divider craft-divider-flow" aria-label="演示和技术区过渡">
+          <div className="craft-divider-meta">
+            <span className="craft-divider-avatar" aria-hidden="true" />
+            <span>Demo note</span>
+            <i aria-hidden="true" />
+          </div>
+          <div className="craft-divider-copy">
+            <div className="divider-copy-text">
+              <p className="eyebrow">Core stack</p>
+              <p>
+                「先跑通支付流程，再展开关键技术。」
+              </p>
+              <div className="divider-note-chips" aria-hidden="true">
+                <span>permission</span>
+                <span>x402</span>
+                <span>proof</span>
+              </div>
+            </div>
+            <div className="divider-art divider-art-flow" aria-hidden="true">
+              <img
+                className="divider-art-main"
+                src="/illustrations/raw/dino-flower.jpg"
+                alt=""
+              />
+              <span>policy first</span>
+              <img
+                className="divider-art-float"
+                src="/illustrations/raw/line-cat-face.jpg"
+                alt=""
+              />
+            </div>
+          </div>
+        </section>
+
+        <section className="demo-technology-showcase" aria-label="关键技术展示">
+          <div className="tech-collage" aria-hidden="true">
+            <img
+              className="tech-collage-piece tech-collage-piece-desk"
+              src="/illustrations/raw/sketch-desk-cat.jpg"
+              alt=""
+            />
+            <img
+              className="tech-collage-piece tech-collage-piece-sleep"
+              src="/illustrations/raw/sleepy-fish-cat.jpg"
+              alt=""
+            />
+            <img
+              className="tech-collage-piece tech-collage-piece-moon"
+              src="/illustrations/sticker-7.png"
+              alt=""
+            />
+            <img
+              className="tech-collage-piece tech-collage-piece-fish"
+              src="/illustrations/sticker-8.png"
+              alt=""
+            />
+          </div>
+          <div className="tech-stickers" aria-hidden="true">
+            <img className="tech-sticker tech-sticker-boxcat" src="/illustrations/sticker-5.png" alt="" />
+            <img className="tech-sticker tech-sticker-duck" src="/illustrations/sticker-10.png" alt="" />
+            <img className="tech-sticker tech-sticker-dino" src="/illustrations/raw/dino-flower.jpg" alt="" />
+            <img className="tech-sticker tech-sticker-linecat" src="/illustrations/raw/line-cat-face.jpg" alt="" />
+          </div>
+          <DemoEvidenceStage
             paidPocResult={paidPocResult}
+            remainingBudget={remainingBudget(state)}
             state={state}
           />
-        </div>
-      </section>
+        </section>
+      </div>
 
-      <section className="craft-divider craft-divider-flow" aria-label="演示和技术区过渡">
-        <div className="craft-divider-meta">
-          <span className="craft-divider-avatar" aria-hidden="true" />
-          <span>Demo note</span>
-          <i aria-hidden="true" />
-        </div>
-        <div className="craft-divider-copy">
-          <p className="eyebrow">Core stack</p>
-          <p>
-            「先跑通支付流程，再展开关键技术。」
-          </p>
-        </div>
-      </section>
-
-      <section className="demo-technology-showcase" aria-label="关键技术展示">
-        <DemoEvidenceStage
-          paidPocResult={paidPocResult}
-          remainingBudget={remainingBudget(state)}
-          state={state}
-        />
-      </section>
-
-      <section className="craft-divider craft-divider-proof" aria-label="技术和证据区过渡">
-        <div className="craft-divider-copy">
-          <p className="eyebrow">Audit surface</p>
-          <p>
-            「一次授权，一次 x402 调用，证据自然留下。」
-          </p>
-        </div>
-        <div className="craft-divider-meta">
-          <span className="craft-divider-avatar" aria-hidden="true" />
-          <span>Proof</span>
-          <i aria-hidden="true" />
-        </div>
-      </section>
-
-      <section className="proof-section" id="ledger" aria-label="账本和链上证据">
-        <div className="proof-grid">
-          <section className="proof-block" aria-label="支出账本">
-            <div className="proof-item-header">
-              <div>
-                <p className="eyebrow">支出账本</p>
-                <h2>结果留痕</h2>
+      <div className="demo-proof-band">
+        <section className="craft-divider craft-divider-proof" aria-label="技术和证据区过渡">
+          <div className="craft-divider-copy">
+            <div className="divider-copy-text">
+              <p className="eyebrow">Audit surface</p>
+              <p>
+                「一次授权，一次 x402 调用，证据自然留下。」
+              </p>
+              <div className="divider-note-chips" aria-hidden="true">
+                <span>ledger</span>
+                <span>tx hash</span>
+                <span>revocable</span>
               </div>
-              <StatusBadge value={state.ledger} />
             </div>
-            <SpendLedger state={state} />
-          </section>
+            <div className="divider-art divider-art-proof" aria-hidden="true">
+              <img
+                className="divider-art-main"
+                src="/illustrations/raw/lion-cat.jpg"
+                alt=""
+              />
+              <span>audit trail</span>
+              <img
+                className="divider-art-float"
+                src="/illustrations/raw/wave-cat.jpg"
+                alt=""
+              />
+            </div>
+          </div>
+          <div className="craft-divider-meta">
+            <span className="craft-divider-avatar" aria-hidden="true" />
+            <span>Proof</span>
+            <i aria-hidden="true" />
+          </div>
+        </section>
 
-          <section className="proof-block" aria-label="ERC-7710 链上证明">
-            <div className="proof-item-header">
-              <div>
-                <p className="eyebrow">Chain Evidence</p>
-                <h2>ERC-7710 链上证明</h2>
+        <section className="proof-section" id="ledger" aria-label="账本和链上证据">
+          <div className="proof-stickers" aria-hidden="true">
+            <img className="proof-sticker proof-sticker-sleep" src="/illustrations/sticker-6.png" alt="" />
+            <img className="proof-sticker proof-sticker-moon" src="/illustrations/sticker-7.png" alt="" />
+            <img className="proof-sticker proof-sticker-wavecat" src="/illustrations/raw/wave-cat.jpg" alt="" />
+          </div>
+          <div className="proof-grid">
+            <section className="proof-block" aria-label="支出账本">
+              <div className="proof-item-header">
+                <div>
+                  <p className="eyebrow">支出账本</p>
+                  <h2>结果留痕</h2>
+                </div>
+                <StatusBadge value={state.ledger} />
               </div>
-              <StatusBadge value={chainEvidenceStatus} />
-            </div>
-            <ChainEvidencePanel state={state} />
-          </section>
-        </div>
-      </section>
+              <SpendLedger state={state} />
+            </section>
+
+            <section className="proof-block" aria-label="ERC-7710 链上证明">
+              <div className="proof-item-header">
+                <div>
+                  <p className="eyebrow">Chain Evidence</p>
+                  <h2>ERC-7710 链上证明</h2>
+                </div>
+                <StatusBadge value={chainEvidenceStatus} />
+              </div>
+              <ChainEvidencePanel state={state} />
+            </section>
+          </div>
+        </section>
+      </div>
     </main>
     <ConfirmDialog
       onCancel={() => resolveConfirmation(false)}

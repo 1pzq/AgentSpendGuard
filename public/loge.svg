@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 160" width="160" height="160">
+  <defs>
+    <filter id="rough" x="-5%" y="-5%" width="110%" height="110%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.04" numOctaves="3" seed="2" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="1.8" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+    <filter id="roughHeavy" x="-8%" y="-8%" width="116%" height="116%">
+      <feTurbulence type="fractalNoise" baseFrequency="0.03" numOctaves="4" seed="7" result="noise"/>
+      <feDisplacementMap in="SourceGraphic" in2="noise" scale="2.5" xChannelSelector="R" yChannelSelector="G"/>
+    </filter>
+  </defs>
+  <rect width="160" height="160" fill="#fafaf5" rx="20"/>
+  <rect x="5" y="5" width="150" height="150" rx="18" fill="none" stroke="black" stroke-width="4" filter="url(#rough)"/>
+  <rect x="9" y="9" width="142" height="142" rx="16" fill="none" stroke="black" stroke-width="1.2" opacity="0.2" filter="url(#rough)"/>
+  <path d="M80 20 L118 34 L118 84 Q117 118 80 132 Q43 118 42 84 L42 34 Z" fill="#fafaf5" stroke="black" stroke-width="5" stroke-linejoin="round" stroke-linecap="round" filter="url(#rough)"/>
+  <path d="M80 26 L112 38 L112 82 Q111 112 80 126 Q49 112 48 82 L48 38 Z" fill="none" stroke="black" stroke-width="1.3" stroke-linejoin="round" opacity="0.2" filter="url(#rough)"/>
+  <path d="M57 68 L64 44 L74 68" fill="#fafaf5" stroke="black" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round" filter="url(#rough)"/>
+  <path d="M86 66 L95 42 L106 66" fill="#fafaf5" stroke="black" stroke-width="4.5" stroke-linejoin="round" stroke-linecap="round" filter="url(#rough)"/>
+  <ellipse cx="80" cy="90" rx="26" ry="24" fill="#fafaf5" stroke="black" stroke-width="5" stroke-linecap="round" filter="url(#rough)"/>
+  <ellipse cx="80" cy="97" rx="15" ry="12" fill="#fafaf5" stroke="black" stroke-width="3.5" stroke-linecap="round" filter="url(#rough)"/>
+  <ellipse cx="72" cy="96" rx="4.5" ry="3" fill="black" filter="url(#rough)"/>
+  <path d="M85,82 Q89,77 94,82" stroke="black" stroke-width="3.5" fill="none" stroke-linecap="round" filter="url(#rough)"/>
+  <line x1="89" y1="91" x2="96" y2="90" stroke="black" stroke-width="2" stroke-linecap="round" opacity="0.45" filter="url(#rough)"/>
+  <line x1="90" y1="95" x2="97" y2="94" stroke="black" stroke-width="2" stroke-linecap="round" opacity="0.45" filter="url(#rough)"/>
+  <line x1="91" y1="99" x2="97" y2="98" stroke="black" stroke-width="2" stroke-linecap="round" opacity="0.4" filter="url(#rough)"/>
+  <polygon points="80,72 87,82 80,85 73,82" fill="black" filter="url(#roughHeavy)"/>
+  <path d="M115,36 C115,33 112,30 109,33 C106,30 103,33 103,36 C103,41 109,46 109,46 C109,46 115,41 115,36 Z" fill="black" filter="url(#rough)"/>
+  <g filter="url(#rough)">
+    <rect x="46" y="134" width="17" height="11" rx="5" fill="none" stroke="black" stroke-width="3.5"/>
+    <rect x="58" y="138" width="17" height="11" rx="5" fill="none" stroke="black" stroke-width="3.5"/>
+    <rect x="70" y="134" width="17" height="11" rx="5" fill="none" stroke="black" stroke-width="3.5"/>
+    <rect x="82" y="138" width="17" height="11" rx="5" fill="none" stroke="black" stroke-width="3.5"/>
+    <rect x="94" y="134" width="17" height="11" rx="5" fill="none" stroke="black" stroke-width="3.5"/>
+  </g>
+  <g stroke="black" stroke-width="2.5" stroke-linecap="round" filter="url(#rough)">
+    <line x1="20" y1="28" x2="27" y2="28"/>
+    <line x1="23.5" y1="24.5" x2="23.5" y2="31.5"/>
+  </g>
+</svg>

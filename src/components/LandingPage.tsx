@@ -38,7 +38,7 @@ export function LandingPage() {
     <main className="landing-shell">
       <header className="landing-nav" aria-label="Agent SpendGuard navigation">
         <a className="landing-brand" href="/">
-          <span className="landing-brand-mark" aria-hidden="true" />
+          <img className="landing-brand-mark" src="/loge.svg" alt="" />
           Agent SpendGuard
         </a>
         <nav aria-label="Primary">
@@ -54,6 +54,11 @@ export function LandingPage() {
       </header>
 
       <section className="landing-hero" id="overview">
+        <div className="landing-sticker-field" aria-hidden="true">
+          <img className="landing-sticker landing-sticker-moon" src="/illustrations/sticker-7.png" alt="" />
+          <img className="landing-sticker landing-sticker-duck" src="/illustrations/sticker-10.png" alt="" />
+          <img className="landing-sticker landing-sticker-fish" src="/illustrations/sticker-8.png" alt="" />
+        </div>
         <div className="landing-hero-copy">
           <p className="landing-kicker">x402 + ERC-7710 payment control</p>
           <h1>给 AI Agent 一笔可控预算</h1>
@@ -83,7 +88,7 @@ export function LandingPage() {
             </div>
             <div className="landing-product-grid">
               <aside className="landing-product-sidebar">
-                <span className="landing-product-logo">AS</span>
+                <img className="landing-product-logo" src="/loge.svg" alt="" />
                 <p>Agent Session</p>
                 <strong>Budget active</strong>
                 <div className="landing-session-meter">

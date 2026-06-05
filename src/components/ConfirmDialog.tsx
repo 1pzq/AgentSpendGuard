@@ -33,6 +33,16 @@ function SketchConfirmIcon() {
   );
 }
 
+function detailClassName(detail: ConfirmDialogDetail) {
+  const classes = ["confirm-dialog-detail"];
+
+  if (detail.label.includes("金额")) classes.push("is-featured");
+  if (detail.label.includes("网络")) classes.push("is-network");
+  if (detail.label.includes("预检")) classes.push("is-preflight");
+
+  return classes.join(" ");
+}
+
 export function ConfirmDialog({
   onCancel,
   onConfirm,
@@ -60,8 +70,13 @@ export function ConfirmDialog({
     >
       <div className="confirm-dialog-panel">
         <div className="confirm-dialog-brand">
-          <span className="confirm-dialog-logo">SpendGuard</span>
-          <span>{options.eyebrow ?? "确认操作"}</span>
+          <span className="confirm-dialog-logo">
+            <img src="/loge.svg" alt="" />
+            SpendGuard
+          </span>
+          <span className="confirm-dialog-status">
+            {options.eyebrow ?? "确认操作"}
+          </span>
         </div>
         <div className="confirm-dialog-body">
           <span className="confirm-dialog-icon">
@@ -77,7 +92,10 @@ export function ConfirmDialog({
         {options.details?.length ? (
           <dl className="confirm-dialog-details">
             {options.details.map((detail) => (
-              <div key={`${detail.label}-${detail.value}`}>
+              <div
+                className={detailClassName(detail)}
+                key={`${detail.label}-${detail.value}`}
+              >
                 <dt>{detail.label}</dt>
                 <dd>{detail.value}</dd>
               </div>
@@ -100,6 +118,10 @@ export function ConfirmDialog({
           >
             {options.confirmLabel ?? "确认"}
           </button>
+        </div>
+        <div className="confirm-dialog-footer" aria-hidden="true">
+          <span>ERC-7710 · x402 Protocol</span>
+          <span>1Shot Relay · Ready</span>
         </div>
       </div>
     </div>

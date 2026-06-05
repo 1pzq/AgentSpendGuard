@@ -41,6 +41,10 @@ function shortenHex(value: string | null) {
   return `${value.slice(0, 6)}...${value.slice(-4)}`;
 }
 
+function fullHex(value: string | null) {
+  return value ?? "未记录";
+}
+
 function latestProofEntry(state: SpendGuardDemoState) {
   return state.ledgerEntries.find(
     (entry) => entry.txHash || entry.payloadContextHash
@@ -110,7 +114,7 @@ export function ChainEvidencePanel({ state }: ChainEvidencePanelProps) {
       <dl className="detail-list chain-evidence-list">
         <div>
           <dt>DelegationManager</dt>
-          <dd>{shortenHex(delegationManager)}</dd>
+          <dd className="full-hash">{fullHex(delegationManager)}</dd>
         </div>
         <div>
           <dt>Redeem function</dt>
@@ -130,20 +134,20 @@ export function ChainEvidencePanel({ state }: ChainEvidencePanelProps) {
                 rel="noreferrer"
                 target="_blank"
               >
-                {shortenHex(txHash)}
+                {fullHex(txHash)}
               </a>
             ) : (
-              shortenHex(txHash)
+              fullHex(txHash)
             )}
           </dd>
         </div>
         <div>
           <dt>Payload context hash</dt>
-          <dd>{shortenHex(payloadHash)}</dd>
+          <dd className="full-hash">{fullHex(payloadHash)}</dd>
         </div>
         <div>
           <dt>Child delegation target</dt>
-          <dd>{shortenHex(childTarget)}</dd>
+          <dd className="full-hash">{fullHex(childTarget)}</dd>
         </div>
       </dl>
       <div className="chain-verify" aria-label="链上证据验证">

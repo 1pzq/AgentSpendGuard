@@ -1,4 +1,9 @@
 import type { AgentRunnerAdapters } from "@/server/agent-runner/runAgentWithPermission";
+import {
+  normalizeAgentSpendDecision,
+  type AgentSpendDecisionInput,
+  type AgentSpendDecisionIntent
+} from "@/server/agent-runner/agentSpendDecision";
 import { decideAgentSpend } from "./agentSpendDecisionAdapter";
 import { runConfiguredAiRiskBrief } from "./aiAdapter";
 import { getMockX402Requirement } from "./mockX402Adapter";
@@ -24,8 +29,26 @@ export {
 } from "./mockPaymentAdapter";
 export { mockVeniceAdapter, runMockAiRiskBrief, runMockVenice } from "./mockVeniceAdapter";
 
+async function decideMockAgentSpend(input: AgentSpendDecisionInput) {
+  const successfulCalls = input.recentLedgerEntries.filter(
+    (entry) => entry.status === "success" || entry.status === "paid_ai_failed"
+  ).length;
+  const intent: AgentSpendDecisionIntent = {
+    confidence: "high",
+    decision: "spend",
+    estimatedCostAtomic: input.amountAtomic,
+    reason: [
+      `${input.service} wallet risk brief requires one paid analysis call.`,
+      `The requested endpoint ${input.allowedEndpoint} is in scope and this would be paid call #${successfulCalls + 1}.`,
+      "SpendGuard still enforces budget, endpoint, token, network, and payTo before any x402 header is submitted."
+    ].join(" ")
+  };
+
+  return normalizeAgentSpendDecision(input, intent);
+}
+
 export const mockAgentRunnerAdapters: AgentRunnerAdapters = {
-  decideAgentSpend,
+  decideAgentSpend: decideMockAgentSpend,
   getRequirement: getMockX402Requirement,
   payRequirement: payMockRequirement,
   runAiRiskBrief: runMockAiRiskBrief

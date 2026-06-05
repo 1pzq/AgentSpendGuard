@@ -9,6 +9,10 @@ function nowIso(): string {
   return new Date().toISOString();
 }
 
+function uniqueRequirementId() {
+  return `${spendguardConfig.mockIds.paymentRequirementId}-${Date.now().toString(16)}`;
+}
+
 function expiresAtIso(createdAt: string): string {
   return new Date(Date.parse(createdAt) + REQUIREMENT_TTL_MS).toISOString();
 }
@@ -34,7 +38,7 @@ export async function getMockX402Requirement({
   const createdAt = nowIso();
 
   return {
-    id: spendguardConfig.mockIds.paymentRequirementId,
+    id: uniqueRequirementId(),
     endpoint: spendguardConfig.endpoint.path,
     method: spendguardConfig.endpoint.method,
     amountAtomic: spendguardConfig.policy.pricePerCallAtomic,

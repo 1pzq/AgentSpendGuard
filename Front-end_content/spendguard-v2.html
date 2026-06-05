@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SpendGuard — 付费确认</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@400;500&family=Noto+Sans+SC:wght@300;400;500;700&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after {
+    margin: 0; padding: 0; box-sizing: border-box;
+  }
+
+  :root {
+    --bg:        #f0ebe0;
+    --bg2:       #e8e2d5;
+    --surface:   #faf7f2;
+    --surface2:  #f2ede4;
+    --border:    rgba(60, 45, 20, 0.10);
+    --border-md: rgba(60, 45, 20, 0.16);
+    --orange:    #e05c2a;
+    --orange-lt: rgba(224, 92, 42, 0.10);
+    --orange-md: rgba(224, 92, 42, 0.20);
+    --text-1:    #1a1510;
+    --text-2:    rgba(26, 21, 16, 0.55);
+    --text-3:    rgba(26, 21, 16, 0.35);
+    --green:     #3a9e6f;
+    --green-lt:  rgba(58, 158, 111, 0.12);
+  }
+
+  body {
+    background: var(--bg);
+    font-family: 'Noto Sans SC', sans-serif;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  /* Subtle noise texture overlay */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.04'/%3E%3C/svg%3E");
+    pointer-events: none;
+    opacity: 0.5;
+  }
+
+  /* Decorative blobs */
+  .blob {
+    position: fixed;
+    border-radius: 50%;
+    filter: blur(80px);
+    pointer-events: none;
+    opacity: 0.35;
+  }
+  .blob-1 {
+    width: 400px; height: 400px;
+    background: #e8c9a0;
+    top: -100px; right: -100px;
+  }
+  .blob-2 {
+    width: 300px; height: 300px;
+    background: #d4b896;
+    bottom: -80px; left: -80px;
+  }
+
+  /* ── Card ── */
+  .card {
+    width: 500px;
+    max-width: calc(100vw - 32px);
+    background: var(--surface);
+    border: 1.5px solid var(--border-md);
+    border-radius: 28px;
+    overflow: hidden;
+    position: relative;
+    animation: pop 0.55s cubic-bezier(0.16, 1, 0.3, 1) both;
+    box-shadow:
+      0 2px 0 rgba(255,255,255,0.8) inset,
+      0 -1px 0 var(--border) inset,
+      0 20px 60px rgba(60,40,10,0.12),
+      0 4px 12px rgba(60,40,10,0.06);
+  }
+
+  @keyframes pop {
+    from { opacity: 0; transform: scale(0.95) translateY(20px); }
+    to   { opacity: 1; transform: scale(1) translateY(0); }
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 24px;
+    border-bottom: 1.5px solid var(--border);
+    background: rgba(255,255,255,0.5);
+  }
+
+  .brand {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .brand-icon {
+    width: 34px; height: 34px;
+    background: var(--surface2);
+    border: 1.5px solid var(--border-md);
+    border-radius: 10px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px;
+  }
+
+  .brand-name {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 15px;
+    color: var(--text-1);
+    letter-spacing: 0.01em;
+  }
+
+  .badge {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 5px 12px;
+    background: var(--green-lt);
+    border: 1.5px solid rgba(58, 158, 111, 0.25);
+    border-radius: 100px;
+  }
+
+  .badge-dot {
+    width: 6px; height: 6px;
+    background: var(--green);
+    border-radius: 50%;
+    animation: blink 2s ease-in-out infinite;
+  }
+
+  @keyframes blink {
+    0%,100% { opacity: 1; }
+    50%      { opacity: 0.4; }
+  }
+
+  .badge-text {
+    font-family: 'DM Mono', monospace;
+    font-size: 11px;
+    color: var(--green);
+    font-weight: 500;
+    letter-spacing: 0.04em;
+  }
+
+  /* ── Body ── */
+  .body {
+    padding: 30px 28px 26px;
+  }
+
+  .eyebrow {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 10px;
+  }
+
+  .eyebrow-tag {
+    font-family: 'DM Mono', monospace;
+    font-size: 10.5px;
+    font-weight: 500;
+    color: var(--orange);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    background: var(--orange-lt);
+    border: 1px solid var(--orange-md);
+    padding: 3px 9px;
+    border-radius: 100px;
+  }
+
+  .title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 32px;
+    line-height: 1.1;
+    color: var(--text-1);
+    letter-spacing: -0.025em;
+    margin-bottom: 11px;
+  }
+
+  .title em {
+    font-style: normal;
+    color: var(--orange);
+  }
+
+  .desc {
+    font-size: 13.5px;
+    color: var(--text-2);
+    line-height: 1.7;
+    margin-bottom: 26px;
+    font-weight: 400;
+  }
+
+  .desc strong {
+    color: var(--text-1);
+    font-weight: 600;
+  }
+
+  /* ── Info grid ── */
+  .grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 20px;
+  }
+
+  .cell {
+    background: var(--surface2);
+    border: 1.5px solid var(--border);
+    border-radius: 16px;
+    padding: 15px 17px;
+    transition: border-color 0.18s, box-shadow 0.18s;
+  }
+
+  .cell:hover {
+    border-color: var(--border-md);
+    box-shadow: 0 2px 8px rgba(60,40,10,0.06);
+  }
+
+  .cell.featured {
+    background: var(--orange);
+    border-color: transparent;
+    box-shadow: 0 4px 16px rgba(224, 92, 42, 0.28);
+  }
+
+  .cell-label {
+    font-family: 'DM Mono', monospace;
+    font-size: 10px;
+    color: var(--text-3);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 5px;
+  }
+
+  .cell.featured .cell-label {
+    color: rgba(255,255,255,0.6);
+  }
+
+  .cell-value {
+    font-family: 'Syne', sans-serif;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-1);
+    letter-spacing: -0.01em;
+    line-height: 1.2;
+  }
+
+  .cell.featured .cell-value {
+    color: #fff;
+  }
+
+  .cell-value .unit {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    font-weight: 400;
+    color: var(--text-2);
+    margin-left: 2px;
+  }
+
+  .cell.featured .unit {
+    color: rgba(255,255,255,0.65);
+  }
+
+  .network-row {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .network-pip {
+    width: 7px; height: 7px;
+    background: #6366f1;
+    border-radius: 50%;
+    box-shadow: 0 0 0 2px rgba(99,102,241,0.2);
+    flex-shrink: 0;
+  }
+
+  .signer-sub {
+    font-family: 'DM Mono', monospace;
+    font-size: 11.5px;
+    color: var(--text-3);
+    font-weight: 400;
+    margin-top: 2px;
+  }
+
+  /* ── Divider ── */
+  .divider {
+    height: 1.5px;
+    background: var(--border);
+    margin-bottom: 20px;
+    border-radius: 1px;
+  }
+
+  /* ── Actions ── */
+  .actions {
+    display: flex;
+    gap: 10px;
+  }
+
+  .btn-cancel {
+    flex: 1;
+    padding: 13px 18px;
+    background: transparent;
+    border: 1.5px solid var(--border-md);
+    border-radius: 14px;
+    color: var(--text-2);
+    font-family: 'Noto Sans SC', sans-serif;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.18s;
+    letter-spacing: 0.02em;
+  }
+
+  .btn-cancel:hover {
+    background: var(--surface2);
+    color: var(--text-1);
+    border-color: var(--border-md);
+  }
+
+  .btn-submit {
+    flex: 2;
+    padding: 13px 20px;
+    background: var(--text-1);
+    border: none;
+    border-radius: 14px;
+    color: var(--surface);
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.22s cubic-bezier(0.16,1,0.3,1);
+    position: relative;
+    overflow: hidden;
+    letter-spacing: 0.01em;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+  }
+
+  .btn-submit::after {
+    content: '→';
+    font-size: 16px;
+    transition: transform 0.2s;
+  }
+
+  .btn-submit:hover {
+    background: var(--orange);
+    transform: translateY(-1px);
+    box-shadow: 0 6px 20px rgba(224, 92, 42, 0.35);
+  }
+
+  .btn-submit:hover::after {
+    transform: translateX(3px);
+  }
+
+  .btn-submit:active {
+    transform: translateY(0);
+  }
+
+  /* ── Footer ── */
+  .footer {
+    padding: 13px 24px;
+    border-top: 1.5px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: rgba(255,255,255,0.3);
+  }
+
+  .footer-left, .footer-right {
+    font-family: 'DM Mono', monospace;
+    font-size: 10.5px;
+    color: var(--text-3);
+    letter-spacing: 0.05em;
+  }
+
+  .footer-right {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+  }
+
+  .footer-right::before {
+    content: '';
+    display: inline-block;
+    width: 5px; height: 5px;
+    background: var(--green);
+    border-radius: 50%;
+    opacity: 0.7;
+  }
+
+  /* stagger */
+  .cell:nth-child(1) { animation: fadeUp 0.4s 0.18s both; }
+  .cell:nth-child(2) { animation: fadeUp 0.4s 0.26s both; }
+  .cell:nth-child(3) { animation: fadeUp 0.4s 0.34s both; }
+  .cell:nth-child(4) { animation: fadeUp 0.4s 0.42s both; }
+  .actions           { animation: fadeUp 0.4s 0.48s both; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+</style>
+</head>
+<body>
+
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
+<div class="card">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="brand">
+      <div class="brand-icon">🛡</div>
+      <div class="brand-name">SpendGuard</div>
+    </div>
+    <div class="badge">
+      <div class="badge-dot"></div>
+      <span class="badge-text">ERC-7710 预检通过</span>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+
+    <div class="eyebrow">
+      <span class="eyebrow-tag">付费调用确认</span>
+    </div>
+
+    <div class="title">提交第 <em>#1</em> 次<br>付费调用吗？</div>
+
+    <div class="desc">
+      本地结算预检已通过。确认后将提交真实 <strong>x402 付费请求</strong>，并等待 <strong>1Shot relay</strong> 结算完成。
+    </div>
+
+    <div class="grid">
+      <div class="cell">
+        <div class="cell-label">调用序号</div>
+        <div class="cell-value"># 1</div>
+      </div>
+
+      <div class="cell featured">
+        <div class="cell-label">支付金额</div>
+        <div class="cell-value">0.01 <span class="unit">USDC</span></div>
+      </div>
+
+      <div class="cell">
+        <div class="cell-label">预检结果</div>
+        <div class="cell-value" style="font-size:16px;">1 个 facilitator</div>
+        <div class="signer-sub">签名者</div>
+      </div>
+
+      <div class="cell">
+        <div class="cell-label">网络</div>
+        <div class="cell-value" style="font-size:15px;">
+          <div class="network-row">
+            <div class="network-pip"></div>
+            Base Sepolia
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="actions">
+      <button class="btn-cancel">取消</button>
+      <button class="btn-submit">提交调用</button>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <span class="footer-left">ERC-7710 · x402 Protocol</span>
+    <span class="footer-right">1Shot Relay · Ready</span>
+  </div>
+
+</div>
+</body>
+</html>

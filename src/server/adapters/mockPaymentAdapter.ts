@@ -22,6 +22,14 @@ function resolvePayer({
   );
 }
 
+function uniqueMockTxHash() {
+  const entropy = `${Date.now().toString(16)}${Math.floor(
+    Math.random() * Number.MAX_SAFE_INTEGER
+  ).toString(16)}`;
+
+  return `0x${entropy.padStart(64, "0").slice(-64)}`;
+}
+
 export async function payMockRequirement(
   input: PayRequirementInput
 ): Promise<MockPaymentReceipt> {
@@ -35,10 +43,14 @@ export async function payMockRequirement(
   });
   const submission = await submitOneShotPayment(quote);
   const status = await getOneShotPaymentStatus(submission);
-  const oneShot = createOneShotTimeline({ quote, status });
+  const txHash = uniqueMockTxHash();
+  const oneShot = {
+    ...createOneShotTimeline({ quote, status }),
+    txHash
+  };
 
   return {
-    id: spendguardConfig.mockIds.paymentReceiptId,
+    id: `${spendguardConfig.mockIds.paymentReceiptId}-${Date.now().toString(16)}`,
     requirementId: input.paymentRequirement.id,
     status: "paid",
     amountAtomic: input.paymentRequirement.amountAtomic,
@@ -46,7 +58,7 @@ export async function payMockRequirement(
     chainId: input.paymentRequirement.chainId,
     payer,
     payTo: input.paymentRequirement.payTo,
-    txHash: status.txHash,
+    txHash,
     paidAt: status.confirmedAt,
     oneShot
   };

@@ -890,13 +890,15 @@ export async function payErc7710DeepseekRiskBrief(
   }
 
   input.onStage?.("submitting_paid_request");
-  const paidResponse = await fetch(PAID_POC_ENDPOINT, {
+  const paidRequest = fetch(PAID_POC_ENDPOINT, {
     ...requestInit,
     headers: {
       ...requestInit.headers,
       ...httpClient.encodePaymentSignatureHeader(paymentPayload)
     }
   });
+  input.onStage?.("settling");
+  const paidResponse = await paidRequest;
   const json = await parseApiResponse(paidResponse);
 
   if (paidResponse.status !== 200) {
@@ -908,7 +910,6 @@ export async function payErc7710DeepseekRiskBrief(
   }
 
   try {
-    input.onStage?.("settling");
     await httpClient.processPaymentResult(
       paymentPayload,
       (name) => paidResponse.headers.get(name),
