@@ -323,9 +323,9 @@ function dashboardErc7710Proof(
         : "grant_ready";
   const validationMessage =
     status === "blocked"
-      ? "SpendGuard 已在提交任何 ERC-7710 payment payload 前阻断超预算请求。"
+      ? "SpendGuard 已在提交任何 ERC-7710 payment payload 前阻断超预算请求"
       : status === "settled"
-        ? "服务端在记录付费 x402 结算前，已验证 ERC-7710 payload 与保存的 Advanced Permission 授权匹配。"
+        ? "服务端在记录付费 x402 结算前，已验证 ERC-7710 payload 与保存的 Advanced Permission 授权匹配"
         : undefined;
 
   return buildErc7710ProofFromGrant({
@@ -410,7 +410,7 @@ function dashboardAccounting(
     agentBudgetConsumedAtomic: permission.spentAtomic,
     policyBudgetCovers: "x402_service_price_only",
     policyNote:
-      "演示预算只计算 x402 服务价；1Shot 中继费会作为钱包扣款单独展示。",
+      "演示预算只计算 x402 服务价；1Shot 中继费会作为钱包扣款单独展示",
     relayFee:
       relayFeeAtomic !== null
         ? formatExactAtomicAmount(relayFeeAtomic, permission.tokenDecimals, permission.token)
@@ -458,8 +458,8 @@ function dashboardOnchainPermission(
     error: activeGrant
       ? null
       : grant
-        ? "Advanced Permission 未处于可查询的 granted 状态。"
-        : "尚未保存 MetaMask Advanced Permission 授权。",
+        ? "Advanced Permission 未处于可查询的 granted 状态"
+        : "尚未保存 MetaMask Advanced Permission 授权",
     isNewPeriod: null,
     source: "metamask-period-transfer-enforcer",
     status: activeGrant ? "not_queried" : "not_applicable",
@@ -641,13 +641,13 @@ function blockState(entries: LedgerEntry[]): DashboardState["block"] {
   if (!blockedEntry) {
     return {
       attempted: false,
-      reason: "尚未尝试超预算请求。"
+      reason: "尚未尝试超预算请求"
     };
   }
 
   return {
     attempted: true,
-    reason: blockedEntry.reason ?? "支付前已阻断：支出超过策略预算。"
+    reason: blockedEntry.reason ?? "支付前已阻断：支出超过策略预算"
   };
 }
 

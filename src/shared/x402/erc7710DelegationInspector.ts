@@ -687,20 +687,20 @@ export function buildErc7710PayloadProof(input: {
 function defaultProofMessage(status: Erc7710ProofStatus) {
   switch (status) {
     case "grant_ready":
-      return "MetaMask Advanced Permission 授权已保存，尚未提交 ERC-7710 payment payload。";
+      return "MetaMask Advanced Permission 授权已保存，尚未提交 ERC-7710 payment payload";
     case "payload_validated":
-      return "ERC-7710 payment payload 在本地验证中与已保存授权匹配。";
+      return "ERC-7710 payment payload 在本地验证中与已保存授权匹配";
     case "settlement_preflighted":
-      return "ERC-7710 payment payload 与已保存授权匹配，并通过本地结算预检。";
+      return "ERC-7710 payment payload 与已保存授权匹配，并通过本地结算预检";
     case "settled":
-      return "ERC-7710 payment payload 已验证，并完成 x402 付费请求结算。";
+      return "ERC-7710 payment payload 已验证，并完成 x402 付费请求结算";
     case "blocked":
-      return "SpendGuard 已在提交 ERC-7710 payment payload 前阻断该请求。";
+      return "SpendGuard 已在提交 ERC-7710 payment payload 前阻断该请求";
     case "failed":
-      return "ERC-7710 payment proof 在付费结算成功前失败。";
+      return "ERC-7710 payment proof 在付费结算成功前失败";
     case "not_ready":
     default:
-      return "尚未保存 MetaMask Advanced Permission 授权。";
+      return "尚未保存 MetaMask Advanced Permission 授权";
   }
 }
 

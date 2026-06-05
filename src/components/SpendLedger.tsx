@@ -5,10 +5,8 @@ type SpendLedgerProps = {
   state: SpendGuardDemoState;
 };
 
-function shortenHex(value: string | null) {
-  if (!value) return "未记录";
-  if (value.length <= 16) return value;
-  return `${value.slice(0, 6)}...${value.slice(-4)}`;
+function fullHash(value: string | null) {
+  return value ?? "未记录";
 }
 
 export function SpendLedger({ state }: SpendLedgerProps) {
@@ -62,9 +60,9 @@ export function SpendLedger({ state }: SpendLedgerProps) {
               <span>
                 {entry.status === "blocked"
                   ? "未提交 paid header"
-                  : `tx ${shortenHex(entry.txHash)}`}
+                  : `tx ${fullHash(entry.txHash)}`}
               </span>
-              <span>payload {shortenHex(entry.payloadContextHash)}</span>
+              <span>payload {fullHash(entry.payloadContextHash)}</span>
             </span>
             <span>
               <span className={`ledger-status ${entry.status}`}>

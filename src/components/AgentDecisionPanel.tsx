@@ -49,7 +49,7 @@ export function AgentDecisionPanel({ state }: AgentDecisionPanelProps) {
           </div>
         </dl>
       ) : (
-        <p className="empty-text">运行 agent 后，这里只显示支出判断、理由和策略结果。</p>
+        <p className="empty-text">运行 agent 后，这里只显示支出判断、理由和策略结果</p>
       )}
     </article>
   );

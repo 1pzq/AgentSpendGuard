@@ -35,12 +35,6 @@ const REDEEM_DELEGATIONS_SELECTOR = "0xcef6d209";
 const REDEEM_DELEGATIONS_SIGNATURE =
   "redeemDelegations(bytes[],bytes32[],bytes[])";
 
-function shortenHex(value: string | null) {
-  if (!value) return "未记录";
-  if (value.length <= 16) return value;
-  return `${value.slice(0, 6)}...${value.slice(-4)}`;
-}
-
 function fullHex(value: string | null) {
   return value ?? "未记录";
 }
@@ -55,11 +49,11 @@ function verificationStatusCopy(
   report: ChainEvidenceVerificationReport | null,
   verifying: boolean
 ) {
-  if (verifying) return "正在通过 Base Sepolia RPC 校验链上证据。";
+  if (verifying) return "正在通过 Base Sepolia RPC 校验链上证据";
   if (!report) return null;
   return report.ok
-    ? `链上验证通过：${report.results.length} 笔 tx 均匹配 redeemDelegations 和 USDC 转账。`
-    : "链上验证未通过，请查看失败项。";
+    ? `链上验证通过：${report.results.length} 笔 tx 均匹配 redeemDelegations 和 USDC 转账`
+    : "链上验证未通过，请查看失败项";
 }
 
 export function ChainEvidencePanel({ state }: ChainEvidencePanelProps) {
@@ -102,7 +96,7 @@ export function ChainEvidencePanel({ state }: ChainEvidencePanelProps) {
     } catch (error) {
       setVerification(null);
       setVerificationError(
-        error instanceof Error ? error.message : "链上证据验证失败。"
+        error instanceof Error ? error.message : "链上证据验证失败"
       );
     } finally {
       setVerifying(false);
@@ -175,8 +169,9 @@ export function ChainEvidencePanel({ state }: ChainEvidencePanelProps) {
                   {result.ok ? "PASS" : "FAIL"} {result.call}
                 </span>
                 <a href={result.explorerUrl} rel="noreferrer" target="_blank">
-                  {shortenHex(result.txHash)}
+                  {fullHex(result.txHash)}
                 </a>
+                <span>payload {fullHex(result.payloadContextHash)}</span>
                 <span>block {result.blockNumber ?? "n/a"}</span>
                 <span>selector {result.inputSelector ?? "n/a"}</span>
                 {result.failures.length > 0 ? (

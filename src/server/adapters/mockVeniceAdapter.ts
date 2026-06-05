@@ -24,11 +24,11 @@ export async function runMockVenice(
   return {
     id: `${spendguardConfig.mockIds.aiBriefId}:${input.paymentReceipt.id}`,
     title: "钱包风险简报",
-    summary: `模拟 ${service} 风险简报：钱包 ${shortAddress(walletAddress)} 已完成 x402 支付 ${input.paymentReceipt.id}。`,
+    summary: `模拟 ${service} 风险简报：钱包 ${shortAddress(walletAddress)} 已完成 x402 支付 ${input.paymentReceipt.id}`,
     findings: [
-      "抽样钱包活动中未发现高危授权暴露。",
-      "主网复用前，建议复查两个过期的测试网授权。",
-      "建议下一步：继续将该 agent 限制在每天 1.00 USDC 预算内。"
+      "抽样钱包活动中未发现高危授权暴露",
+      "主网复用前，建议复查两个过期的测试网授权",
+      "建议下一步：继续将该 agent 限制在每天 1.00 USDC 预算内"
     ],
     walletAddress,
     riskLevel: "low",

@@ -27,8 +27,8 @@ body {
   background: var(--bg);
   color: var(--ink);
   font-family:
-    Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
-    sans-serif;
+    "PingFang SC", "PingFang TC", "PingFang HK", -apple-system,
+    BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 button {

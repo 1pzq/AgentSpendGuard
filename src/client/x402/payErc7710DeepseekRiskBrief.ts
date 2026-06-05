@@ -134,7 +134,7 @@ function lowerHex(value: string | null | undefined) {
 
 function assertAddress(value: string, label: string): Hex {
   if (!isAddress(value)) {
-    throw new Erc7710PaidPocError(`${label} 不是有效的 EVM 地址。`);
+    throw new Erc7710PaidPocError(`${label} 不是有效的 EVM 地址`);
   }
 
   return getAddress(value) as Hex;
@@ -142,7 +142,7 @@ function assertAddress(value: string, label: string): Hex {
 
 function assertHex(value: string, label: string): Hex {
   if (!isHex(value) || value === "0x") {
-    throw new Erc7710PaidPocError(`${label} 不是有效的非空 hex 数据。`);
+    throw new Erc7710PaidPocError(`${label} 不是有效的非空 hex 数据`);
   }
 
   return value as Hex;
@@ -158,12 +158,12 @@ function amountEquals(value: string, expected: string) {
 
 function positiveAtomicBigInt(value: string, label: string) {
   if (!/^\d+$/.test(value)) {
-    throw new Erc7710PaidPocError(`${label} 不是整数 atomic 金额。`);
+    throw new Erc7710PaidPocError(`${label} 不是整数 atomic 金额`);
   }
 
   const parsed = BigInt(value);
   if (parsed <= BigInt(0)) {
-    throw new Erc7710PaidPocError(`${label} 必须大于 0。`);
+    throw new Erc7710PaidPocError(`${label} 必须大于 0`);
   }
 
   return parsed;
@@ -171,7 +171,7 @@ function positiveAtomicBigInt(value: string, label: string) {
 
 function nonNegativeAtomicBigInt(value: string, label: string) {
   if (!/^\d+$/.test(value)) {
-    throw new Erc7710PaidPocError(`${label} 不是整数 atomic 金额。`);
+    throw new Erc7710PaidPocError(`${label} 不是整数 atomic 金额`);
   }
 
   return BigInt(value);
@@ -191,27 +191,27 @@ function assertActiveGrant(
 ): ActiveAdvancedPermissionGrant {
   if (!grant) {
     throw new Erc7710PaidPocError(
-      "当前没有可用于 ERC-7710 付费 PoC 的 MetaMask Advanced Permission 授权。"
+      "当前没有可用于 ERC-7710 付费 PoC 的 MetaMask Advanced Permission 授权"
     );
   }
 
   if (grant.source !== "metamask-erc7715") {
-    throw new Erc7710PaidPocError("已保存权限不是 MetaMask ERC-7715 授权。");
+    throw new Erc7710PaidPocError("已保存权限不是 MetaMask ERC-7715 授权");
   }
 
   if (grant.status !== "granted" || grant.expiry <= Math.floor(Date.now() / 1000)) {
     throw new Erc7710PaidPocError(
-      "已保存的 MetaMask Advanced Permission 授权已过期或已撤销。"
+      "已保存的 MetaMask Advanced Permission 授权已过期或已撤销"
     );
   }
 
   if (grant.chainId !== BASE_SEPOLIA_CHAIN_ID) {
-    throw new Erc7710PaidPocError("已保存授权未限定到 Base Sepolia。");
+    throw new Erc7710PaidPocError("已保存授权未限定到 Base Sepolia");
   }
 
   if (!grant.from) {
     throw new Erc7710PaidPocError(
-      "已保存授权缺少 ERC-7710 x402 所需的 delegator 地址。"
+      "已保存授权缺少 ERC-7710 x402 所需的 delegator 地址"
     );
   }
 
@@ -223,17 +223,17 @@ function assertActiveGrant(
 
   if (lowerHex(grant.to) !== lowerHex(grant.sessionAccount)) {
     throw new Erc7710PaidPocError(
-      "已保存授权的 redeemer 与本地会话账户不匹配。"
+      "已保存授权的 redeemer 与本地会话账户不匹配"
     );
   }
 
   if (lowerHex(grant.tokenAddress) !== lowerHex(BASE_SEPOLIA_USDC.address)) {
-    throw new Erc7710PaidPocError("已保存授权未限定到 Base Sepolia USDC。");
+    throw new Erc7710PaidPocError("已保存授权未限定到 Base Sepolia USDC");
   }
 
   if (BigInt(grant.periodAmountAtomic) < BigInt(expectedAmountAtomic)) {
     throw new Erc7710PaidPocError(
-      "已保存授权额度低于本次 ERC-7710 x402 请求金额。"
+      "已保存授权额度低于本次 ERC-7710 x402 请求金额"
     );
   }
 
@@ -248,13 +248,13 @@ function selectedRequirementFromPayload(
 
   if (requirement.extra?.assetTransferMethod !== "erc7710") {
     throw new Erc7710PaidPocError(
-      "选中的 x402 requirement 没有请求 ERC-7710 支付。"
+      "选中的 x402 requirement 没有请求 ERC-7710 支付"
     );
   }
 
   if (!amountEquals(requirement.amount, expectedAmountAtomic)) {
     throw new Erc7710PaidPocError(
-      `选中的 x402 requirement 金额为 ${requirement.amount} atomic USDC，不是预期的 ${expectedAmountAtomic}。`
+      `选中的 x402 requirement 金额为 ${requirement.amount} atomic USDC，不是预期的 ${expectedAmountAtomic}`
     );
   }
 
@@ -274,7 +274,7 @@ function permissionContextFromPayload(paymentPayload: PaymentPayload) {
 
   if (typeof permissionContext !== "string") {
     throw new Erc7710PaidPocError(
-      "ERC-7710 x402 payload 未包含 permission context。"
+      "ERC-7710 x402 payload 未包含 permission context"
     );
   }
 
@@ -304,19 +304,19 @@ function assertFacilitatorRedeemerConstraint(
 
   if (!inspection.decoded) {
     throw new Erc7710PaidPocError(
-      `生成的 ERC-7710 x402 permission context 无法用于 RedeemerEnforcer 验证：${inspection.error ?? "未知解码错误"}。`
+      `生成的 ERC-7710 x402 permission context 无法用于 RedeemerEnforcer 验证：${inspection.error ?? "未知解码错误"}`
     );
   }
 
   if (!hasTargetDelegate) {
     throw new Erc7710PaidPocError(
-      `生成的 ERC-7710 x402 payload 第一条 delegation delegate 为 ${firstDelegation?.delegate ?? "缺失"}，不是 1Shot facilitator 地址。`
+      `生成的 ERC-7710 x402 payload 第一条 delegation delegate 为 ${firstDelegation?.delegate ?? "缺失"}，不是 1Shot facilitator 地址`
     );
   }
 
   if (inspection.hasRedeemerEnforcer && !inspection.hasAllRequiredRedeemers) {
     throw new Erc7710PaidPocError(
-      `生成的 ERC-7710 x402 payload 缺少 facilitator redeemer 地址：${inspection.missingRequiredRedeemers.join(", ")}。`
+      `生成的 ERC-7710 x402 payload 缺少 facilitator redeemer 地址：${inspection.missingRequiredRedeemers.join(", ")}`
     );
   }
 }
@@ -353,7 +353,7 @@ async function fetchOneShotFeeQuote(input: {
 
   if (availableForRelayFee < minFeeAtomic) {
     throw new Erc7710PaidPocError(
-      "已保存授权额度低于本次 x402 金额加 1Shot 费用报价。"
+      "已保存授权额度低于本次 x402 金额加 1Shot 费用报价"
     );
   }
 
@@ -387,7 +387,7 @@ function oneShotScopedRequirement(
 
   if (lowerHex(feeQuote.tokenAddress) !== lowerHex(requirement.asset)) {
     throw new Erc7710PaidPocError(
-      "1Shot 费用 token 与选中的 x402 ERC-7710 资产不匹配。"
+      "1Shot 费用 token 与选中的 x402 ERC-7710 资产不匹配"
     );
   }
 
@@ -450,7 +450,7 @@ async function createOneShotDelegationPayload(input: {
 
   if (!parentDelegation) {
     throw new Erc7710PaidPocError(
-      "已保存的 MetaMask Advanced Permission 授权不包含父 delegation。"
+      "已保存的 MetaMask Advanced Permission 授权不包含父 delegation"
     );
   }
 
@@ -500,7 +500,7 @@ async function createOneShotDelegationPayload(input: {
 
   if (lowerHex(firstDelegation?.delegate) !== lowerHex(target)) {
     throw new Erc7710PaidPocError(
-      `生成的 ERC-7710 x402 payload 第一条 delegation delegate 为 ${firstDelegation?.delegate ?? "缺失"}，不是 1Shot relayer target。`
+      `生成的 ERC-7710 x402 payload 第一条 delegation delegate 为 ${firstDelegation?.delegate ?? "缺失"}，不是 1Shot relayer target`
     );
   }
 
@@ -522,7 +522,7 @@ function addressFromPayload(
   const value = paymentPayload.payload[field];
 
   if (typeof value !== "string") {
-    throw new Erc7710PaidPocError(`ERC-7710 x402 payload 未包含 ${label}。`);
+    throw new Erc7710PaidPocError(`ERC-7710 x402 payload 未包含 ${label}`);
   }
 
   return assertAddress(value, label);
@@ -541,13 +541,13 @@ function assertPayloadMatchesGrant(
 
   if (lowerHex(delegationManager) !== lowerHex(grant.delegationManager)) {
     throw new Erc7710PaidPocError(
-      "生成的 ERC-7710 x402 payload delegation manager 与 MetaMask 授权不匹配。"
+      "生成的 ERC-7710 x402 payload delegation manager 与 MetaMask 授权不匹配"
     );
   }
 
   if (lowerHex(delegator) !== lowerHex(grant.from)) {
     throw new Erc7710PaidPocError(
-      "生成的 ERC-7710 x402 payload delegator 与 MetaMask 授权不匹配。"
+      "生成的 ERC-7710 x402 payload delegator 与 MetaMask 授权不匹配"
     );
   }
 }
@@ -587,7 +587,7 @@ function assertChildErc20TransferAmountCaveat(
 ) {
   if (!expected) {
     throw new Erc7710PaidPocError(
-      "生成的 ERC-7710 x402 payload 未记录本次 child delegation 金额上限。"
+      "生成的 ERC-7710 x402 payload 未记录本次 child delegation 金额上限"
     );
   }
 
@@ -595,19 +595,19 @@ function assertChildErc20TransferAmountCaveat(
 
   if (!caveat) {
     throw new Erc7710PaidPocError(
-      "生成的 ERC-7710 x402 payload 缺少 erc20TransferAmount child caveat。"
+      "生成的 ERC-7710 x402 payload 缺少 erc20TransferAmount child caveat"
     );
   }
 
   if (lowerHex(caveat.tokenAddress) !== lowerHex(expected.tokenAddress)) {
     throw new Erc7710PaidPocError(
-      "生成的 erc20TransferAmount child caveat token 与 x402 资产不匹配。"
+      "生成的 erc20TransferAmount child caveat token 与 x402 资产不匹配"
     );
   }
 
   if (!amountEquals(caveat.maxAmountAtomic, expected.maxAmountAtomic)) {
     throw new Erc7710PaidPocError(
-      `生成的 erc20TransferAmount child caveat 上限为 ${caveat.maxAmountAtomic} atomic USDC，不是预期的 ${expected.maxAmountAtomic}。`
+      `生成的 erc20TransferAmount child caveat 上限为 ${caveat.maxAmountAtomic} atomic USDC，不是预期的 ${expected.maxAmountAtomic}`
     );
   }
 }
@@ -623,7 +623,7 @@ function createPaidPocHttpClient(input: {
 
   if (lowerHex(sessionAccount.address) !== lowerHex(input.grant.sessionAccount)) {
     throw new Erc7710PaidPocError(
-      "已保存会话账户与 Advanced Permission 授权不匹配。"
+      "已保存会话账户与 Advanced Permission 授权不匹配"
     );
   }
 
@@ -697,7 +697,7 @@ async function parseApiResponse(
       ok: false,
       error: {
         code: "INVALID_RESPONSE",
-        message: paymentRequiredError(response) ?? `受保护接口返回 HTTP ${response.status}，但没有 SpendGuard JSON envelope。`
+        message: paymentRequiredError(response) ?? `受保护接口返回 HTTP ${response.status}，但没有 SpendGuard JSON envelope`
       }
     };
   } catch {
@@ -705,7 +705,7 @@ async function parseApiResponse(
       ok: false,
       error: {
         code: "INVALID_RESPONSE",
-        message: paymentRequiredError(response) ?? `受保护接口返回 HTTP ${response.status}，但没有 JSON。`
+        message: paymentRequiredError(response) ?? `受保护接口返回 HTTP ${response.status}，但没有 JSON`
       }
     };
   }
@@ -748,14 +748,14 @@ function explainErc7710Failure(message: string) {
     normalized.includes("<!doctype html") ||
     normalized.includes("<html")
   ) {
-    return "MetaMask ERC-7710 facilitator settlement 在产生 tx hash 前返回 HTTP 504。SpendGuard 没有记录账本条目。";
+    return "MetaMask ERC-7710 facilitator settlement 在产生 tx hash 前返回 HTTP 504SpendGuard 没有记录账本条目";
   }
 
   if (
     normalized.includes("invalid_exact_evm_erc7710_account_no") ||
     normalized.includes("invalid_exact_evm_erc7710_account_not")
   ) {
-    return `${message}。ERC-7710 facilitator 拒绝了 delegator 账户，因为它在 Base Sepolia 上不可执行。请启用或部署 MetaMask smart account / EIP-7702 账户，然后重新请求 Advanced Permission 授权。SpendGuard 没有记录账本条目。`;
+    return `${message}ERC-7710 facilitator 拒绝了 delegator 账户，因为它在 Base Sepolia 上不可执行请启用或部署 MetaMask smart account / EIP-7702 账户，然后重新请求 Advanced Permission 授权SpendGuard 没有记录账本条目`;
   }
 
   return message;
@@ -793,7 +793,7 @@ async function assertSettlementPreflight(
 
   if (!json.data.okToSubmit) {
     throw new Erc7710PaidPocError(
-      "ERC-7710 本地结算预检未批准提交。"
+      "ERC-7710 本地结算预检未批准提交"
     );
   }
 
@@ -882,7 +882,7 @@ export async function payErc7710DeepseekRiskBrief(
 
     if (!shouldSubmit) {
       throw new Erc7710PaidPocError(
-        "本地预检成功后取消了结算提交。没有提交付费请求。"
+        "本地预检成功后取消了结算提交没有提交付费请求"
       );
     }
   } catch (error) {
@@ -903,7 +903,7 @@ export async function payErc7710DeepseekRiskBrief(
 
   if (paidResponse.status !== 200) {
     const message = json.ok
-      ? `受保护接口返回 HTTP ${paidResponse.status}。`
+      ? `受保护接口返回 HTTP ${paidResponse.status}`
       : json.error.message;
 
     throw new Error(explainErc7710Failure(message));

@@ -86,7 +86,7 @@ export function PolicyCard({ remainingBudget, state }: PolicyCardProps) {
         </div>
       </dl>
       <p className="accounting-note">
-        预算只计算 x402 服务价；钱包扣款细节会写入账本。
+        预算只计算 x402 服务价；钱包扣款细节会写入账本
       </p>
     </article>
   );

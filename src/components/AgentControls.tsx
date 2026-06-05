@@ -197,7 +197,7 @@ export function DemoCommand({
         </dl>
         {showFallbackNote ? (
           <p role="note">
-            静态原型：<code>prototype/index.html</code>。模拟 API 仍由服务端守护；真实授权必须在连接成功后才能启用。
+            静态原型：<code>prototype/index.html</code>模拟 API 仍由服务端守护；真实授权必须在连接成功后才能启用
           </p>
         ) : null}
         {paidPocResult ? (
@@ -310,7 +310,7 @@ export function AgentControls({ state }: Pick<AgentControlsProps, "state">) {
       <div className="agent-task">
         <p className="task-title">生成钱包风险简报</p>
         <p>
-          Agent 会先生成支出意图，再通过 SpendGuard 策略检查，之后才接收 x402 支付要求并使用 ERC-7710 会话权限。
+          Agent 会先生成支出意图，再通过 SpendGuard 策略检查，之后才接收 x402 支付要求并使用 ERC-7710 会话权限
         </p>
       </div>
       <dl className="detail-list">

@@ -78,7 +78,7 @@ const INITIAL_ACCOUNTING: DashboardAccounting = {
   agentBudgetConsumedAtomic: "0",
   policyBudgetCovers: "x402_service_price_only",
   policyNote:
-    "演示预算只计算 x402 服务价；1Shot 中继费会作为钱包扣款单独展示。",
+    "演示预算只计算 x402 服务价；1Shot 中继费会作为钱包扣款单独展示",
   relayFee: "结算报价后显示",
   relayFeeAtomic: null,
   remainingBudget: "1.00 USDC",
@@ -97,7 +97,7 @@ const INITIAL_ONCHAIN_PERMISSION: OnchainPermissionAvailableAmount = {
   currentPeriod: null,
   delegationHash: null,
   enforcer: null,
-  error: "尚未保存 MetaMask Advanced Permission 授权。",
+  error: "尚未保存 MetaMask Advanced Permission 授权",
   isNewPeriod: null,
   source: "metamask-period-transfer-enforcer",
   status: "not_applicable",
@@ -107,11 +107,11 @@ const INITIAL_ONCHAIN_PERMISSION: OnchainPermissionAvailableAmount = {
   updatedAt: null
 };
 
-const INITIAL_NARRATIVE = "连接 MetaMask，开始受预算约束的 agent 支付流程。";
+const INITIAL_NARRATIVE = "连接 MetaMask，开始受预算约束的 agent 支付流程";
 const FALLBACK_DEMO_NOTE =
-  "兜底：静态故事仍在 prototype/index.html；重置后仍可通过后端路由验证模拟 API 演示。";
+  "兜底：静态故事仍在 prototype/index.html；重置后仍可通过后端路由验证模拟 API 演示";
 const WALLET_CHANGED_NOTE =
-  "MetaMask 账号或网络已变化。授权或支出前请重新连接。";
+  "MetaMask 账号或网络已变化授权或支出前请重新连接";
 
 type BusyAction =
   | "connect"
@@ -126,24 +126,24 @@ type BusyAction =
 type RunFailurePhase = "precheck" | "refresh" | Erc7710PaidPocStage;
 
 const ERC7710_RUN_STAGE_COPY: Record<Erc7710PaidPocStage, string> = {
-  requesting_402: "正在向服务端请求 ERC-7710 x402 challenge。",
+  requesting_402: "正在向服务端请求 ERC-7710 x402 challenge",
   building_delegation_payload:
-    "正在基于已保存授权构造 ERC-7710 x402 delegation payload。",
+    "正在基于已保存授权构造 ERC-7710 x402 delegation payload",
   preflighting_settlement:
-    "提交支付前正在本地模拟 ERC-7710 结算。",
+    "提交支付前正在本地模拟 ERC-7710 结算",
   submitting_paid_request:
-    "正在用会话权限提交 ERC-7710 付费请求。",
-  settling: "付费请求已提交，正在等待 1Shot 结算、DeepSeek 返回和账本确认。"
+    "正在用会话权限提交 ERC-7710 付费请求",
+  settling: "付费请求已提交，正在等待 1Shot 结算、DeepSeek 返回和账本确认"
 };
 
 const ERC7710_PAID_POC_STAGE_COPY: Record<Erc7710PaidPocStage, string> = {
-  requesting_402: "正在请求 ERC-7710 付费 PoC 的 x402 challenge。",
+  requesting_402: "正在请求 ERC-7710 付费 PoC 的 x402 challenge",
   building_delegation_payload:
-    "正在基于已保存授权构造 ERC-7710 x402 delegation payload。",
+    "正在基于已保存授权构造 ERC-7710 x402 delegation payload",
   preflighting_settlement:
-    "提交到 facilitator 前正在本地模拟 ERC-7710 结算。",
-  submitting_paid_request: "正在提交 0.01 USDC 的 ERC-7710 付费请求。",
-  settling: "付费请求已提交，正在等待 1Shot 结算、DeepSeek 返回和账本确认。"
+    "提交到 facilitator 前正在本地模拟 ERC-7710 结算",
+  submitting_paid_request: "正在提交 0.01 USDC 的 ERC-7710 付费请求",
+  settling: "付费请求已提交，正在等待 1Shot 结算、DeepSeek 返回和账本确认"
 };
 
 type WalletFailureStatus = Extract<
@@ -163,32 +163,32 @@ const WALLET_CONNECTION_FAILURE_COPY: Record<
   [WALLET_ERROR_CODES.WALLET_NOT_FOUND]: {
     walletStatus: "unsupported",
     message:
-      "未检测到 MetaMask。请安装或启用扩展后重新连接。"
+      "未检测到 MetaMask请安装或启用扩展后重新连接"
   },
   [WALLET_ERROR_CODES.WALLET_NOT_METAMASK]: {
     walletStatus: "unsupported",
     message:
-      "检测到钱包 provider，但不是 MetaMask。此演示需要在 Base Sepolia 上使用 MetaMask。"
+      "检测到钱包 provider，但不是 MetaMask此演示需要在 Base Sepolia 上使用 MetaMask"
   },
   [WALLET_ERROR_CODES.USER_REJECTED]: {
     walletStatus: "disconnected",
     message:
-      "你在 MetaMask 中取消了连接。钱包仍未连接，策略也未授权。"
+      "你在 MetaMask 中取消了连接钱包仍未连接，策略也未授权"
   },
   [WALLET_ERROR_CODES.CHAIN_SWITCH_REJECTED]: {
     walletStatus: "unsupported",
     message:
-      "你取消了切换到 Base Sepolia。当前钱包不支持此演示，策略未授权。"
+      "你取消了切换到 Base Sepolia当前钱包不支持此演示，策略未授权"
   },
   [WALLET_ERROR_CODES.CHAIN_ADD_REJECTED]: {
     walletStatus: "unsupported",
     message:
-      "你取消了向 MetaMask 添加 Base Sepolia。当前钱包不支持此演示，策略未授权。"
+      "你取消了向 MetaMask 添加 Base Sepolia当前钱包不支持此演示，策略未授权"
   },
   [WALLET_ERROR_CODES.UNKNOWN_WALLET_ERROR]: {
     walletStatus: "disconnected",
     message:
-      "MetaMask 在权限设置前连接失败。钱包仍未连接，策略未授权。"
+      "MetaMask 在权限设置前连接失败钱包仍未连接，策略未授权"
   }
 };
 
@@ -204,7 +204,7 @@ function createInitialState(): SpendGuardDemoState {
     revocation: "available",
     block: {
       attempted: false,
-      reason: "尚未尝试超预算请求。"
+      reason: "尚未尝试超预算请求"
     },
     walletInfo: {
       eoa: null,
@@ -410,8 +410,8 @@ function connectFailureCopy(error: unknown): WalletConnectionFailureCopy {
     walletStatus: "disconnected",
     message:
       error instanceof Error
-        ? `${error.message} 钱包仍未连接，策略未授权。`
-        : "钱包连接失败。钱包仍未连接，策略未授权。"
+        ? `${error.message} 钱包仍未连接，策略未授权`
+        : "钱包连接失败钱包仍未连接，策略未授权"
   };
 }
 
@@ -481,20 +481,20 @@ function hydratedNarrative(state: SpendGuardDemoState) {
   const paidCalls = successfulPaidCallCount(state);
 
   if (state.payment === "blocked") {
-    return `超预算请求已在 paid header 前阻断；已支付调用保留 ${paidCalls} 次。`;
+    return `超预算请求已在 paid header 前阻断；已支付调用保留 ${paidCalls} 次`;
   }
 
   if (state.agentAction === "succeeded" && state.payment === "paid") {
     const txHash = state.relayerInfo.txHash
-      ? ` 交易 ${shortenAddress(state.relayerInfo.txHash)} 已入账。`
+      ? ` 交易 ${shortenAddress(state.relayerInfo.txHash)} 已入账`
       : "";
-    const callCopy = paidCalls > 0 ? `第 #${paidCalls} 次付费调用已确认。` : "";
+    const callCopy = paidCalls > 0 ? `第 #${paidCalls} 次付费调用已确认` : "";
 
-    return `${callCopy}已用 ${state.policyConfig.spent.toFixed(2)} USDC，剩余 ${remainingBudget(state).toFixed(2)} USDC。${txHash}`;
+    return `${callCopy}已用 ${state.policyConfig.spent.toFixed(2)} USDC，剩余 ${remainingBudget(state).toFixed(2)} USDC${txHash}`;
   }
 
   if (state.permission === "approved" && state.advancedPermissionGrant) {
-    return "已保存 MetaMask Advanced Permission，可直接运行 ERC-7710 x402 支付。";
+    return "已保存 MetaMask Advanced Permission，可直接运行 ERC-7710 x402 支付";
   }
 
   return INITIAL_NARRATIVE;
@@ -646,7 +646,7 @@ export function Dashboard({
         chainHex === BASE_SEPOLIA_CHAIN_HEX_ID ? "disconnected" : "unsupported";
       const message =
         walletStatus === "unsupported"
-          ? "MetaMask 已离开 Base Sepolia。授权或支出前请重新连接到 Base Sepolia。"
+          ? "MetaMask 已离开 Base Sepolia授权或支出前请重新连接到 Base Sepolia"
           : WALLET_CHANGED_NOTE;
 
       resetAfterWalletChange(walletStatus, message);
@@ -655,7 +655,7 @@ export function Dashboard({
     function handleDisconnect() {
       resetAfterWalletChange(
         "disconnected",
-        "MetaMask 已断开连接。授权或支出前请重新连接。"
+        "MetaMask 已断开连接授权或支出前请重新连接"
       );
     }
 
@@ -745,7 +745,7 @@ export function Dashboard({
 
       try {
         connectingWalletRef.current = true;
-        setNarrative("正在打开 MetaMask。请确认账号和 Base Sepolia 网络。");
+        setNarrative("正在打开 MetaMask请确认账号和 Base Sepolia 网络");
         const walletInfo = await connectBaseSepoliaWallet();
         const { state: nextState } = await postDashboardAction("/api/wallet/connect", {
           walletInfo
@@ -760,7 +760,7 @@ export function Dashboard({
         setDryRunPreview(null);
         setPaidPocResult(null);
         setNarrative(
-          `MetaMask 已连接：${shortenAddress(walletInfo.account)} / Base Sepolia。`
+          `MetaMask 已连接：${shortenAddress(walletInfo.account)} / Base Sepolia`
         );
       } catch (error) {
         const failure = connectFailureNarrative(error);
@@ -783,7 +783,7 @@ export function Dashboard({
         setNarrative(
           `正在打开 MetaMask Advanced Permissions，准备创建 ${state.policyConfig.maxSpend.toFixed(
             2
-          )} USDC / 24 小时的 Base Sepolia 授权。`
+          )} USDC / 24 小时的 Base Sepolia 授权`
         );
         const advancedPermissionGrant = await requestAdvancedSpendPermission({
           maxSpendAtomic: decimalToAtomic(state.policyConfig.maxSpend),
@@ -802,7 +802,7 @@ export function Dashboard({
         setDryRunPreview(null);
         setPaidPocResult(null);
         setNarrative(
-          "Advanced Permission 已批准，agent 只能在这条预算内支付。"
+          "Advanced Permission 已批准，agent 只能在这条预算内支付"
         );
       } catch (error) {
         setState((current) => ({
@@ -819,7 +819,7 @@ export function Dashboard({
         setNarrative(
           error instanceof Error
             ? error.message
-            : "MetaMask Advanced Permission 授权失败。"
+            : "MetaMask Advanced Permission 授权失败"
         );
       }
     });
@@ -855,7 +855,7 @@ export function Dashboard({
 
         setState(nextState);
         setNarrative(
-          "超预算请求已在支付前阻断，没有提交结算。"
+          "超预算请求已在支付前阻断，没有提交结算"
         );
       } catch (error) {
         setState((current) => ({
@@ -868,7 +868,7 @@ export function Dashboard({
             updatedAt: new Date().toISOString()
           }
         }));
-        setNarrative(error instanceof Error ? error.message : "超预算测试运行失败。");
+        setNarrative(error instanceof Error ? error.message : "超预算测试运行失败");
       }
     });
   }
@@ -883,14 +883,14 @@ export function Dashboard({
       try {
         if (!erc7710PaidPocConfig.enabled) {
           setNarrative(
-            "ERC-7710 支付当前未启用。请先启用本地 ERC-7710 支付开关，再运行 agent。"
+            "ERC-7710 支付当前未启用请先启用本地 ERC-7710 支付开关，再运行 agent"
           );
           return;
         }
 
         runFailurePhaseRef.current = "precheck";
         setNarrative(
-          `正在让 agent 生成第 #${callNumber} 次付费调用的支出决策，并交给 SpendGuard 检查预算、范围和钱包状态。`
+          `正在让 agent 生成第 #${callNumber} 次付费调用的支出决策，并交给 SpendGuard 检查预算、范围和钱包状态`
         );
         setState((current) => ({
           ...current,
@@ -949,7 +949,7 @@ export function Dashboard({
               ],
               eyebrow: "ERC-7710 预检通过",
               message:
-                "本地结算预检已经通过。确认后会提交真实 x402 付费请求，并等待 1Shot relay 结算。",
+                "本地结算预检已经通过确认后会提交真实 x402 付费请求，并等待 1Shot relay 结算",
               title: `提交第 #${callNumber} 次付费调用吗？`
             });
           },
@@ -978,8 +978,8 @@ export function Dashboard({
                   ? "settlement_preflighted"
                   : "payload_validated",
                 proof.settlementPreflight
-                  ? "ERC-7710 payload 与已保存授权匹配，并通过本地结算预检。"
-                  : "ERC-7710 payload 在本地验证中与已保存授权匹配。"
+                  ? "ERC-7710 payload 与已保存授权匹配，并通过本地结算预检"
+                  : "ERC-7710 payload 在本地验证中与已保存授权匹配"
               )
             );
           },
@@ -999,7 +999,7 @@ export function Dashboard({
             result.paymentReceipt.erc7710Proof ??
               nextState.erc7710Proof.payload,
             "settled",
-            "x402 结算前，客户端本地验证、结算预检和服务端授权检查均已通过。",
+            "x402 结算前，客户端本地验证、结算预检和服务端授权检查均已通过",
             result.x402.payer
           )
         );
@@ -1007,10 +1007,10 @@ export function Dashboard({
         runFailurePhaseRef.current = null;
         const paidCalls = successfulPaidCallCount(nextState);
         setNarrative(
-          `第 #${paidCalls} 次调用已结算。已用 ${nextState.policyConfig.spent.toFixed(2)} USDC，剩余 ${remainingBudget(nextState).toFixed(2)} USDC。`
+          `第 #${paidCalls} 次调用已结算已用 ${nextState.policyConfig.spent.toFixed(2)} USDC，剩余 ${remainingBudget(nextState).toFixed(2)} USDC`
         );
       } catch (error) {
-        const message = error instanceof Error ? error.message : "Agent 运行失败。";
+        const message = error instanceof Error ? error.message : "Agent 运行失败";
         setState((current) => ({
           ...current,
           agentAction: "failed",
@@ -1039,7 +1039,7 @@ export function Dashboard({
     await runExclusive("dryRun", async () => {
       try {
         setNarrative(
-          "Dry run 正在获取未支付的 x402 要求，并构造 ERC-7710 delegation 预览，不会提交支付。"
+          "Dry run 正在获取未支付的 x402 要求，并构造 ERC-7710 delegation 预览，不会提交支付"
         );
         const preview = await dryRunErc7710Payment({
           advancedPermissionGrant: state.advancedPermissionGrant,
@@ -1058,16 +1058,16 @@ export function Dashboard({
             },
             preview.payloadProof,
             "payload_validated",
-            "Dry run 已构造 ERC-7710 x402 payload，并在本地验证其匹配已保存授权；未提交支付。"
+            "Dry run 已构造 ERC-7710 x402 payload，并在本地验证其匹配已保存授权；未提交支付"
           )
         );
         setNarrative(
-          `ERC-7710 dry run 已就绪：金额 ${preview.requirement.amountAtomic} atomic ${state.policyConfig.token}。未发送 PAYMENT-SIGNATURE header，也未发起付费重试。`
+          `ERC-7710 dry run 已就绪：金额 ${preview.requirement.amountAtomic} atomic ${state.policyConfig.token}未发送 PAYMENT-SIGNATURE header，也未发起付费重试`
         );
       } catch (error) {
         setDryRunPreview(null);
         setNarrative(
-          error instanceof Error ? error.message : "ERC-7710 dry run 失败。"
+          error instanceof Error ? error.message : "ERC-7710 dry run 失败"
         );
       }
     });
@@ -1086,7 +1086,7 @@ export function Dashboard({
       ],
       eyebrow: "真实付费 PoC",
       message:
-        "这会进入真实 ERC-7710 x402 付费流程。系统会先做 SpendGuard 预检和本地结算预检，确认后才提交支付。",
+        "这会进入真实 ERC-7710 x402 付费流程系统会先做 SpendGuard 预检和本地结算预检，确认后才提交支付",
       title: "开始一次真实付费演示吗？"
     });
     if (!confirmed) return;
@@ -1097,7 +1097,7 @@ export function Dashboard({
       try {
         paidPocFailurePhaseRef.current = "precheck";
         setNarrative(
-          `正在让 agent 判断这次 ${erc7710PaidPocConfig.priceLabel} 支出是否值得。`
+          `正在让 agent 判断这次 ${erc7710PaidPocConfig.priceLabel} 支出是否值得`
         );
         setState((current) => ({
           ...current,
@@ -1157,7 +1157,7 @@ export function Dashboard({
               ],
               eyebrow: "结算预检通过",
               message:
-                "确认后会提交真实付费 header。完成后页面会写入 tx hash、payload hash 和 DeepSeek 返回结果。",
+                "确认后会提交真实付费 header完成后页面会写入 tx hash、payload hash 和 DeepSeek 返回结果",
               title: "提交真实结算吗？"
             });
           },
@@ -1186,8 +1186,8 @@ export function Dashboard({
                   ? "settlement_preflighted"
                   : "payload_validated",
                 proof.settlementPreflight
-                  ? "ERC-7710 payload 与已保存授权匹配，并通过本地结算预检。"
-                  : "ERC-7710 payload 在本地验证中与已保存授权匹配。"
+                  ? "ERC-7710 payload 与已保存授权匹配，并通过本地结算预检"
+                  : "ERC-7710 payload 在本地验证中与已保存授权匹配"
               )
             );
           },
@@ -1207,18 +1207,18 @@ export function Dashboard({
             result.paymentReceipt.erc7710Proof ??
               nextState.erc7710Proof.payload,
             "settled",
-            "x402 结算前，客户端本地验证、结算预检和服务端授权检查均已通过。",
+            "x402 结算前，客户端本地验证、结算预检和服务端授权检查均已通过",
             result.x402.payer
           )
         );
         setPaidPocResult(result);
         paidPocFailurePhaseRef.current = null;
         setNarrative(
-          `ERC-7710 付费 PoC 已完成 ${erc7710PaidPocConfig.priceLabel} 结算。`
+          `ERC-7710 付费 PoC 已完成 ${erc7710PaidPocConfig.priceLabel} 结算`
         );
       } catch (error) {
         const message =
-          error instanceof Error ? error.message : "ERC-7710 付费 PoC 失败。";
+          error instanceof Error ? error.message : "ERC-7710 付费 PoC 失败";
         setState((current) => ({
           ...current,
           agentAction: "failed",
@@ -1248,7 +1248,7 @@ export function Dashboard({
       try {
         if (!state.advancedPermissionGrant) {
           setNarrative(
-            "当前会话没有保存 MetaMask Advanced Permission 授权。请先重置并批准真实授权，再同步撤销。"
+            "当前会话没有保存 MetaMask Advanced Permission 授权请先重置并批准真实授权，再同步撤销"
           );
           return;
         }
@@ -1257,15 +1257,15 @@ export function Dashboard({
           ...current,
           revocation: "revoking"
         }));
-        setNarrative("正在打开 MetaMask 撤销 Advanced Permission。");
+        setNarrative("正在打开 MetaMask 撤销 Advanced Permission");
         const revokeResult = await revokeAdvancedSpendPermission(
           state.advancedPermissionGrant,
           {
             onStage(stage) {
               setNarrative(
                 stage === "requesting_wallet_revoke"
-                  ? "正在打开 MetaMask 撤销 Advanced Permission。"
-                  : "撤销尝试后正在检查 MetaMask 已授权权限。"
+                  ? "正在打开 MetaMask 撤销 Advanced Permission"
+                  : "撤销尝试后正在检查 MetaMask 已授权权限"
               );
             }
           }
@@ -1279,23 +1279,23 @@ export function Dashboard({
           }));
           if (revokeResult.directRevokeStatus === "not_supported") {
             setNarrative(
-              "当前 MetaMask 版本不支持 dapp 触发 Advanced Permission 撤销。请在 MetaMask Dapp 连接中手动撤销，然后再次点击撤销同步。本地未记录撤销。"
+              "当前 MetaMask 版本不支持 dapp 触发 Advanced Permission 撤销请在 MetaMask Dapp 连接中手动撤销，然后再次点击撤销同步本地未记录撤销"
             );
           } else if (revokeResult.directRevokeStatus === "rejected") {
             setNarrative(
-              "你在 MetaMask 中取消了直接撤销。授权仍然活跃，本地未记录撤销。"
+              "你在 MetaMask 中取消了直接撤销授权仍然活跃，本地未记录撤销"
             );
           } else if (revokeResult.directRevokeStatus === "failed") {
             setNarrative(
               `直接撤销失败${
                 revokeResult.directRevokeMessage
                   ? `：${revokeResult.directRevokeMessage}`
-                  : "。"
-              }MetaMask 仍报告该授权为活跃，因此本地未记录撤销。`
+                  : ""
+              }MetaMask 仍报告该授权为活跃，因此本地未记录撤销`
             );
           } else {
             setNarrative(
-              "撤销尝试后 MetaMask 仍报告该 Advanced Permission 为活跃。本地未记录撤销。"
+              "撤销尝试后 MetaMask 仍报告该 Advanced Permission 为活跃本地未记录撤销"
             );
           }
           return;
@@ -1319,10 +1319,10 @@ export function Dashboard({
         setPaidPocResult(null);
         setNarrative(
           revokeResult.status === "expired"
-            ? "MetaMask 授权已过期。本地策略已关闭，agent 不能继续支出。"
+            ? "MetaMask 授权已过期本地策略已关闭，agent 不能继续支出"
             : revokeResult.directRevokeStatus === "submitted"
-              ? "钱包同步确认 MetaMask 直接撤销已完成。本地策略已关闭，agent 不能继续支出。"
-              : "MetaMask 已不再报告该授权。本地策略已关闭，agent 不能继续支出。"
+              ? "钱包同步确认 MetaMask 直接撤销已完成本地策略已关闭，agent 不能继续支出"
+              : "MetaMask 已不再报告该授权本地策略已关闭，agent 不能继续支出"
         );
       } catch (error) {
         setState((current) => ({
@@ -1332,7 +1332,7 @@ export function Dashboard({
         setNarrative(
           error instanceof Error
             ? error.message
-            : "本地撤销前 MetaMask 权限同步失败。"
+            : "本地撤销前 MetaMask 权限同步失败"
         );
       }
     });
@@ -1350,7 +1350,7 @@ export function Dashboard({
         setState(createInitialState());
         setDryRunPreview(null);
         setPaidPocResult(null);
-        setNarrative(error instanceof Error ? error.message : "演示重置失败。");
+        setNarrative(error instanceof Error ? error.message : "演示重置失败");
       }
     });
   }
@@ -1388,7 +1388,7 @@ export function Dashboard({
               <em>SpendGuard</em>
             </h1>
             <p className="hero-lede">
-              一个面向 autonomous agents 的支出守卫：先把钱包授权限制在预算和用途内，再让每次 x402 支付留下可验证、可撤销、可审计的证据。
+              一个面向 autonomous agents 的支出守卫：先把钱包授权限制在预算和用途内，再让每次 x402 支付留下可验证、可撤销、可审计的证据
             </p>
             <dl className="hero-stats-row" aria-label="Agent SpendGuard 核心指标">
               <div>
@@ -1404,8 +1404,8 @@ export function Dashboard({
                 <dd>1Shot</dd>
               </div>
               <div>
-                <dt>私钥暴露</dt>
-                <dd>0</dd>
+                <dt>授权协议</dt>
+                <dd>ERC-7710</dd>
               </div>
             </dl>
           </div>
@@ -1429,21 +1429,21 @@ export function Dashboard({
               <span className="hero-feature-icon" aria-hidden="true">⌁</span>
               <div>
                 <h2>预算即边界</h2>
-                <p>单次授权限定金额、用途、时间窗，agent 无权超限。</p>
+                <p>单次授权限定金额、用途、时间窗，agent 无权超限</p>
               </div>
             </article>
             <article>
               <span className="hero-feature-icon" aria-hidden="true">✓</span>
               <div>
                 <h2>策略守门</h2>
-                <p>SpendGuard 在每笔支付前实时预检，模型意图不合规即阻断。</p>
+                <p>SpendGuard 在每笔支付前实时预检，模型意图不合规即阻断</p>
               </div>
             </article>
             <article>
               <span className="hero-feature-icon" aria-hidden="true">□</span>
               <div>
                 <h2>链上可验证</h2>
-                <p>settlement hash、payload、AI 输出三合一，证据可追溯。</p>
+                <p>settlement hash、payload、AI 输出三合一，证据可追溯</p>
               </div>
             </article>
           </div>
@@ -1491,7 +1491,7 @@ export function Dashboard({
           </div>
           <div className="demo-showcase-copy">
             <p className="eyebrow">Live demo flow</p>
-            <h2>从一次授权，到每一笔 agent 支付都有边界。</h2>
+            <h2>从一次授权，到每一笔 agent 支付都有边界</h2>
             <ol className="flow-rail" aria-label="演示步骤">
               <li
                 data-state={
@@ -1505,21 +1505,21 @@ export function Dashboard({
                 <span>01</span>
                 <div>
                   <strong>授权一条预算</strong>
-                  <p>MetaMask Advanced Permission 限定 Base Sepolia USDC、金额和时间窗。</p>
+                  <p>MetaMask Advanced Permission 限定 Base Sepolia USDC、金额和时间窗</p>
                 </div>
               </li>
               <li data-state={paymentStepState}>
                 <span>02</span>
                 <div>
                   <strong>运行一次付费调用</strong>
-                  <p>SpendGuard 预检后，接收 x402 402 challenge 并构造 ERC-7710 payload。</p>
+                  <p>SpendGuard 预检后，接收 x402 402 challenge 并构造 ERC-7710 payload</p>
                 </div>
               </li>
               <li data-state={ledgerStepState}>
                 <span>03</span>
                 <div>
                   <strong>留下可验证证据</strong>
-                  <p>1Shot settlement、payload hash、tx hash、DeepSeek 输出都进入证据面。</p>
+                  <p>1Shot settlement、payload hash、tx hash、DeepSeek 输出都进入证据面</p>
                 </div>
               </li>
             </ol>
@@ -1554,7 +1554,7 @@ export function Dashboard({
             <div className="divider-copy-text">
               <p className="eyebrow">Core stack</p>
               <p>
-                「先跑通支付流程，再展开关键技术。」
+                「先跑通支付流程，再展开关键技术」
               </p>
               <div className="divider-note-chips" aria-hidden="true">
                 <span>permission</span>
@@ -1621,7 +1621,7 @@ export function Dashboard({
             <div className="divider-copy-text">
               <p className="eyebrow">Audit surface</p>
               <p>
-                「一次授权，一次 x402 调用，证据自然留下。」
+                「一次授权，一次 x402 调用，证据自然留下」
               </p>
               <div className="divider-note-chips" aria-hidden="true">
                 <span>ledger</span>

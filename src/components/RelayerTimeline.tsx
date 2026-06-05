@@ -17,8 +17,8 @@ function shortValue(value: string | null) {
 }
 
 function txCopy(value: string | null, status: RelayerStatus) {
-  if (status === "failed") return "任务在记录中继交易前失败。";
-  if (!value) return "暂无中继交易。";
+  if (status === "failed") return "任务在记录中继交易前失败";
+  if (!value) return "暂无中继交易";
   return `${value.slice(0, 6)}...${value.slice(-4)}`;
 }
 
@@ -33,7 +33,7 @@ function feeCopy(state: SpendGuardDemoState) {
       : accounting.relayFee;
   }
 
-  return relayerInfo.fee ?? "暂无报价。";
+  return relayerInfo.fee ?? "暂无报价";
 }
 
 function classForRelayerStep(current: RelayerStatus, step: RelayerStatus) {
@@ -55,8 +55,8 @@ export function RelayerTimeline({ state }: RelayerTimelineProps) {
   const { relayerInfo } = state;
   const isMockMode = relayerInfo.mode === "mock";
   const modeCopy = isMockMode
-    ? "模拟 1Shot 中继：不会发起真实 1Shot API 调用。"
-    : "真实 1Shot 中继：当前视图展示受保护的真实路径。";
+    ? "模拟 1Shot 中继：不会发起真实 1Shot API 调用"
+    : "真实 1Shot 中继：当前视图展示受保护的真实路径";
   const statusLabel = isMockMode
     ? `模拟 ${formatStateLabel(state.relayer)}`
     : formatStateLabel(state.relayer);
@@ -71,7 +71,7 @@ export function RelayerTimeline({ state }: RelayerTimelineProps) {
       title: "报价",
       copy:
         shortValue(relayerInfo.quoteId) ??
-        (isMockMode ? "等待模拟报价。" : "等待 1Shot 报价。")
+        (isMockMode ? "等待模拟报价" : "等待 1Shot 报价")
     },
     {
       state: "quoted" as const,
@@ -81,7 +81,7 @@ export function RelayerTimeline({ state }: RelayerTimelineProps) {
     {
       state: "submitted" as const,
       title: "任务",
-      copy: shortValue(relayerInfo.taskId) ?? "暂无任务 id。"
+      copy: shortValue(relayerInfo.taskId) ?? "暂无任务 id"
     },
     {
       state: "pending" as const,
@@ -89,13 +89,13 @@ export function RelayerTimeline({ state }: RelayerTimelineProps) {
       copy:
         state.relayer === "pending"
           ? isMockMode
-            ? "模拟任务正在等待确认。"
-            : "1Shot 任务正在等待确认。"
+            ? "模拟任务正在等待确认"
+            : "1Shot 任务正在等待确认"
           : relayerInfo.taskId
             ? isMockMode
-              ? "模拟时间线已通过等待步骤。"
-              : "1Shot 时间线已通过等待步骤。"
-            : "暂无待确认任务。"
+              ? "模拟时间线已通过等待步骤"
+              : "1Shot 时间线已通过等待步骤"
+            : "暂无待确认任务"
     },
     {
       state: finalState,

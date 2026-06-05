@@ -36,7 +36,7 @@ export function VeniceResult({ state }: VeniceResultProps) {
           </>
         ) : (
           <p className="empty-text">
-            授权后运行 agent，这里会展示付费 AI 输出。
+            授权后运行 agent，这里会展示付费 AI 输出
           </p>
         )}
       </div>
@@ -56,7 +56,7 @@ export function VeniceResult({ state }: VeniceResultProps) {
           </div>
           <div>
             <dt>AI provider</dt>
-            <dd>{service} 在 settlement 后执行风险简报，不直接签发 x402 challenge。</dd>
+            <dd>{service} 在 settlement 后执行风险简报，不直接签发 x402 challenge</dd>
           </div>
         </dl>
       </div>

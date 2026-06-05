@@ -110,14 +110,14 @@ export function PermissionPreview({ state }: PermissionPreviewProps) {
       <div className="panel-header">
         <div>
           <p className="eyebrow">权限预览</p>
-          <h2>MetaMask AP，不是无限 approval。</h2>
+          <h2>MetaMask AP，不是无限 approval</h2>
         </div>
         <StatusBadge value={state.permission} />
       </div>
       <div className="permission-copy">
         <p>
           Agent 只能在批准的预算、时间窗口和服务范围内支付；不接触主钱包私钥，
-          也不给 agent 无限 token allowance。
+          也不给 agent 无限 token allowance
         </p>
       </div>
       <dl className="accounting-strip permission-summary-strip" aria-label="权限摘要">

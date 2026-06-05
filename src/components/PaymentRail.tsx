@@ -7,27 +7,27 @@ const PAYMENT_STEPS: Array<{
 }> = [
   {
     state: "none",
-    copy: "等待 agent 支出决策。"
+    copy: "等待 agent 支出决策"
   },
   {
     state: "required_402",
-    copy: "SpendGuard seller 返回 x402 402 challenge。"
+    copy: "SpendGuard seller 返回 x402 402 challenge"
   },
   {
     state: "paying",
-    copy: "用保存的授权构造 ERC-7710 payment payload。"
+    copy: "用保存的授权构造 ERC-7710 payment payload"
   },
   {
     state: "paid",
-    copy: "1Shot / facilitator 结算后写入账本。"
+    copy: "1Shot / facilitator 结算后写入账本"
   },
   {
     state: "blocked",
-    copy: "超预算，未提交 paid header。"
+    copy: "超预算，未提交 paid header"
   },
   {
     state: "failed",
-    copy: "结算前退出。"
+    copy: "结算前退出"
   }
 ];
 

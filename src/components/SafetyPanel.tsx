@@ -8,8 +8,8 @@ type SafetyPanelProps = {
 export function SafetyPanel({ state }: SafetyPanelProps) {
   const revokeReason =
     state.revocation === "revoked"
-      ? "该 agent 的智能账户权限已关闭。"
-      : "用户可以撤销当前活跃权限。";
+      ? "该 agent 的智能账户权限已关闭"
+      : "用户可以撤销当前活跃权限";
 
   return (
     <article className="panel safety-panel">

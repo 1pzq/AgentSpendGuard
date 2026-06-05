@@ -98,7 +98,7 @@ function lowerHex(value: string | null | undefined) {
 
 function assertAddress(value: string, label: string): Hex {
   if (!isAddress(value)) {
-    throw new Erc7710DryRunError(`${label} 不是有效的 EVM 地址。`);
+    throw new Erc7710DryRunError(`${label} 不是有效的 EVM 地址`);
   }
 
   return getAddress(value) as Hex;
@@ -106,7 +106,7 @@ function assertAddress(value: string, label: string): Hex {
 
 function assertHex(value: string, label: string): Hex {
   if (!isHex(value) || value === "0x") {
-    throw new Erc7710DryRunError(`${label} 不是有效的非空 hex 数据。`);
+    throw new Erc7710DryRunError(`${label} 不是有效的非空 hex 数据`);
   }
 
   return value as Hex;
@@ -117,27 +117,27 @@ function assertActiveGrant(
 ): ActiveAdvancedPermissionGrant {
   if (!grant) {
     throw new Erc7710DryRunError(
-      "当前没有可用于 dry run 的 MetaMask Advanced Permission 授权。"
+      "当前没有可用于 dry run 的 MetaMask Advanced Permission 授权"
     );
   }
 
   if (grant.source !== "metamask-erc7715") {
-    throw new Erc7710DryRunError("已保存权限不是 MetaMask ERC-7715 授权。");
+    throw new Erc7710DryRunError("已保存权限不是 MetaMask ERC-7715 授权");
   }
 
   if (grant.status !== "granted" || grant.expiry <= Math.floor(Date.now() / 1000)) {
     throw new Erc7710DryRunError(
-      "已保存的 MetaMask Advanced Permission 授权已过期或已撤销。"
+      "已保存的 MetaMask Advanced Permission 授权已过期或已撤销"
     );
   }
 
   if (grant.chainId !== BASE_SEPOLIA_CHAIN_ID) {
-    throw new Erc7710DryRunError("已保存授权未限定到 Base Sepolia。");
+    throw new Erc7710DryRunError("已保存授权未限定到 Base Sepolia");
   }
 
   if (!grant.from) {
     throw new Erc7710DryRunError(
-      "已保存授权缺少 ERC-7710 x402 所需的 delegator 地址。"
+      "已保存授权缺少 ERC-7710 x402 所需的 delegator 地址"
     );
   }
 
@@ -149,12 +149,12 @@ function assertActiveGrant(
 
   if (lowerHex(grant.to) !== lowerHex(grant.sessionAccount)) {
     throw new Erc7710DryRunError(
-      "已保存授权的 redeemer 与本地会话账户不匹配。"
+      "已保存授权的 redeemer 与本地会话账户不匹配"
     );
   }
 
   if (lowerHex(grant.tokenAddress) !== lowerHex(BASE_SEPOLIA_USDC.address)) {
-    throw new Erc7710DryRunError("已保存授权未限定到 Base Sepolia USDC。");
+    throw new Erc7710DryRunError("已保存授权未限定到 Base Sepolia USDC");
   }
 
   return grant as ActiveAdvancedPermissionGrant;
@@ -200,7 +200,7 @@ function selectedRequirementFromPayload(paymentPayload: PaymentPayload) {
 
   if (requirement.extra?.assetTransferMethod !== "erc7710") {
     throw new Erc7710DryRunError(
-      "选中的 x402 requirement 没有请求 ERC-7710 支付。"
+      "选中的 x402 requirement 没有请求 ERC-7710 支付"
     );
   }
 
@@ -211,7 +211,7 @@ function permissionContextFromPayload(paymentPayload: PaymentPayload) {
   const permissionContext = paymentPayload.payload.permissionContext;
   if (typeof permissionContext !== "string") {
     throw new Erc7710DryRunError(
-      "ERC-7710 x402 payload 未包含 permission context。"
+      "ERC-7710 x402 payload 未包含 permission context"
     );
   }
 
@@ -226,7 +226,7 @@ function addressFromPayload(
   const value = paymentPayload.payload[field];
 
   if (typeof value !== "string") {
-    throw new Erc7710DryRunError(`ERC-7710 x402 payload 未包含 ${label}。`);
+    throw new Erc7710DryRunError(`ERC-7710 x402 payload 未包含 ${label}`);
   }
 
   return assertAddress(value, label);
@@ -245,13 +245,13 @@ function assertPayloadMatchesGrant(
 
   if (lowerHex(delegationManager) !== lowerHex(grant.delegationManager)) {
     throw new Erc7710DryRunError(
-      "生成的 ERC-7710 x402 payload delegation manager 与 MetaMask 授权不匹配。"
+      "生成的 ERC-7710 x402 payload delegation manager 与 MetaMask 授权不匹配"
     );
   }
 
   if (lowerHex(delegator) !== lowerHex(grant.from)) {
     throw new Erc7710DryRunError(
-      "生成的 ERC-7710 x402 payload delegator 与 MetaMask 授权不匹配。"
+      "生成的 ERC-7710 x402 payload delegator 与 MetaMask 授权不匹配"
     );
   }
 
@@ -270,7 +270,7 @@ function createDryRunHttpClient(input: {
 
   if (lowerHex(sessionAccount.address) !== lowerHex(input.grant.sessionAccount)) {
     throw new Erc7710DryRunError(
-      "已保存会话账户与 Advanced Permission 授权不匹配。"
+      "已保存会话账户与 Advanced Permission 授权不匹配"
     );
   }
 
@@ -341,7 +341,7 @@ export async function dryRunErc7710Payment(
 
   if (response.status !== 402) {
     throw new Erc7710DryRunError(
-      `Dry run 预期收到未支付的 x402 requirement，但接口返回 HTTP ${response.status}。`
+      `Dry run 预期收到未支付的 x402 requirement，但接口返回 HTTP ${response.status}`
     );
   }
 
