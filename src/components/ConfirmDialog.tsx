@@ -8,8 +8,10 @@ export type ConfirmDialogDetail = {
 export type ConfirmDialogOptions = {
   cancelLabel?: string;
   confirmLabel?: string;
+  confirmArrow?: boolean;
   details?: ConfirmDialogDetail[];
   eyebrow?: string;
+  hideEyebrow?: boolean;
   message: string;
   title: string;
   tone?: "default" | "danger";
@@ -39,6 +41,16 @@ function detailClassName(detail: ConfirmDialogDetail) {
   if (detail.label.includes("金额")) classes.push("is-featured");
   if (detail.label.includes("网络")) classes.push("is-network");
   if (detail.label.includes("预检")) classes.push("is-preflight");
+
+  return classes.join(" ");
+}
+
+function confirmButtonClassName(options: ConfirmDialogOptions) {
+  const classes = [
+    options.tone === "danger" ? "confirm-dialog-primary is-danger" : "confirm-dialog-primary"
+  ];
+
+  if (options.confirmArrow === false) classes.push("no-arrow");
 
   return classes.join(" ");
 }
@@ -74,16 +86,15 @@ export function ConfirmDialog({
             <img src="/loge.svg" alt="" />
             SpendGuard
           </span>
-          <span className="confirm-dialog-status">
-            {options.eyebrow ?? "确认操作"}
-          </span>
         </div>
         <div className="confirm-dialog-body">
           <span className="confirm-dialog-icon">
             <SketchConfirmIcon />
           </span>
           <div>
-            <p className="eyebrow">{options.eyebrow ?? "Action required"}</p>
+            {!options.hideEyebrow ? (
+              <p className="eyebrow">{options.eyebrow ?? "Action required"}</p>
+            ) : null}
             <h2 id="confirm-dialog-title">{options.title}</h2>
             <p>{options.message}</p>
           </div>
@@ -108,11 +119,7 @@ export function ConfirmDialog({
             {options.cancelLabel ?? "取消"}
           </button>
           <button
-            className={
-              options.tone === "danger"
-                ? "confirm-dialog-primary is-danger"
-                : "confirm-dialog-primary"
-            }
+            className={confirmButtonClassName(options)}
             onClick={onConfirm}
             type="button"
           >

@@ -207,7 +207,7 @@ export function LandingPage() {
       <section className="landing-section landing-proof" id="proof">
         <div className="landing-proof-copy">
           <p className="landing-kicker">Proof surface</p>
-          <h2>适合黑客松评审现场展示，也适合真实产品继续扩展</h2>
+          <h2>黑客松评审现场展示</h2>
           <p>
             从连接钱包、授权预算、Agent 运行、x402 结算到撤销权限，整条链路都能在 demo 中跑通
           </p>

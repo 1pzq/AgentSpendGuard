@@ -938,6 +938,7 @@ export function Dashboard({
           confirmAfterPreflight(preflight) {
             return requestConfirmation({
               confirmLabel: "提交调用",
+              confirmArrow: false,
               details: [
                 { label: "调用序号", value: `#${callNumber}` },
                 { label: "支付金额", value: erc7710PaidPocConfig.priceLabel },
@@ -947,9 +948,9 @@ export function Dashboard({
                 },
                 { label: "网络", value: "Base Sepolia" }
               ],
-              eyebrow: "ERC-7710 预检通过",
+              hideEyebrow: true,
               message:
-                "本地结算预检已经通过确认后会提交真实 x402 付费请求，并等待 1Shot relay 结算",
+                "本地结算预检已经通过确认后会提交 x402 付费请求，并等待 1Shot relay 结算",
               title: `提交第 #${callNumber} 次付费调用吗？`
             });
           },
@@ -1519,7 +1520,7 @@ export function Dashboard({
                 <span>03</span>
                 <div>
                   <strong>留下可验证证据</strong>
-                  <p>1Shot settlement、payload hash、tx hash、DeepSeek 输出都进入证据面</p>
+                  <p>1Shot settlement、payload hash、tx hash、DeepSeek </p>
                 </div>
               </li>
             </ol>

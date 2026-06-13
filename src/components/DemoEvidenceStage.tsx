@@ -220,7 +220,7 @@ export function DemoEvidenceStage({
           <div className="evidence-card-header">
             <div>
               <p className="evidence-label">预算策略</p>
-              <h3>MetaMask AP 给 agent 一条小预算</h3>
+              <h3>MetaMask AP 给 agent 预算</h3>
             </div>
             <StatusBadge value={state.permission} />
           </div>
@@ -268,7 +268,7 @@ export function DemoEvidenceStage({
           <div className="evidence-card-header">
             <div>
               <p className="evidence-label">Agent 决策</p>
-              <h3>模型先说要花，SpendGuard 再放行</h3>
+              
             </div>
             <StatusBadge value={decision.value} />
           </div>
@@ -335,12 +335,6 @@ export function DemoEvidenceStage({
               <dd>{requirement.assetTransferMethod}</dd>
             </div>
             <div>
-              <dt>Amount</dt>
-              <dd>
-                {requirement.amountAtomic} atomic {requirement.token}
-              </dd>
-            </div>
-            <div>
               <dt>Resource</dt>
               <dd>{state.x402Evidence.protectedResource}</dd>
             </div>
@@ -354,27 +348,11 @@ export function DemoEvidenceStage({
           <div className="evidence-card-header">
             <div>
               <p className="evidence-label">结算证据</p>
-              <h3>1Shot 结算后才拿 DeepSeek 风险简报</h3>
+              <h3>AI 风险简报</h3>
             </div>
             <StatusBadge value={state.ledger} />
           </div>
           <dl className="evidence-metrics two-col">
-            <div>
-              <dt>Settlement tx</dt>
-              <dd>
-                {explorerHref ? (
-                  <a href={explorerHref} rel="noreferrer" target="_blank">
-                    {shortenHex(txHash)}
-                  </a>
-                ) : (
-                  shortenHex(txHash, "待结算")
-                )}
-              </dd>
-            </div>
-            <div>
-              <dt>Payload hash</dt>
-              <dd>{shortenHex(payloadHash)}</dd>
-            </div>
             <div>
               <dt>DelegationManager</dt>
               <dd>{shortenHex(grant?.delegationManager, "授权后显示")}</dd>

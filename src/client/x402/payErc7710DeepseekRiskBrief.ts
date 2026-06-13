@@ -91,6 +91,12 @@ export type Erc7710SettlementPreflightResult = {
   simulatedRedeemers: string[];
 };
 
+type SettlementPreflightFailure = {
+  error?: unknown;
+  ok?: unknown;
+  redeemer?: unknown;
+};
+
 const X402_NETWORK: X402Network = `eip155:${BASE_SEPOLIA_CHAIN_ID}`;
 const PAID_POC_ENDPOINT = "/api/x402/deepseek/risk-brief/erc7710-paid-poc";
 const PAID_POC_PREFLIGHT_ENDPOINT =
@@ -727,6 +733,54 @@ function paymentRequiredError(response: Response) {
   }
 }
 
+function settlementPreflightFailureSummary(json: ApiResponse<unknown>) {
+  if (json.ok) return null;
+
+  const results = json.error.details?.results;
+  if (!Array.isArray(results)) return null;
+
+  const failures = results.filter(
+    (item): item is SettlementPreflightFailure =>
+      !!item && typeof item === "object" && (item as SettlementPreflightFailure).ok === false
+  );
+  const firstFailure = failures[0];
+  const redeemer = typeof firstFailure?.redeemer === "string"
+    ? firstFailure.redeemer
+    : null;
+  const error = typeof firstFailure?.error === "string"
+    ? firstFailure.error
+    : null;
+
+  if (!redeemer && !error) return null;
+
+  const redeemerCopy = redeemer ? `redeemer ${shortAddress(redeemer)}` : "facilitator redeemer";
+  const reasonCopy = error ? `，原因：${error}` : "";
+
+  return `${redeemerCopy} 模拟失败${reasonCopy}`;
+}
+
+function preflightErrorMessage(json: ApiResponse<unknown>) {
+  if (json.ok) return null;
+
+  const detail = settlementPreflightFailureSummary(json);
+  const action =
+    "请先撤销并重新批准 MetaMask Advanced Permission，确认钱包在 Base Sepolia 有足够 USDC，且 smart account / EIP-7702 账户可执行后再运行。";
+
+  if (detail) {
+    return `${json.error.message} ${detail}。${action}`;
+  }
+
+  if (json.error.code === "ERC7710_SETTLEMENT_PREFLIGHT_REVERTED") {
+    return `${json.error.message} ${action}`;
+  }
+
+  return json.error.message;
+}
+
+function shortAddress(value: string) {
+  return value.length > 12 ? `${value.slice(0, 6)}...${value.slice(-4)}` : value;
+}
+
 function errorMessage(error: unknown) {
   if (error instanceof Error && error.message) return error.message;
   if (
@@ -788,7 +842,7 @@ async function assertSettlementPreflight(
   const json = (await response.json()) as ApiResponse<Erc7710SettlementPreflightResult>;
 
   if (!json.ok) {
-    throw new Erc7710PaidPocError(json.error.message);
+    throw new Erc7710PaidPocError(preflightErrorMessage(json) ?? json.error.message);
   }
 
   if (!json.data.okToSubmit) {

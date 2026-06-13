@@ -1,0 +1,31 @@
+1
+00:00:00,000 --> 00:00:03,463
+Agent SpendGuard：让 AI Agent 能花钱，但不能乱花钱
+
+2
+00:00:03,583 --> 00:00:07,045
+用户先通过 MetaMask Advanced Permissions 授权：1 USDC / 24 小时
+
+3
+00:00:07,165 --> 00:00:10,628
+Agent 想调用 DeepSeek 风险简报，先生成 spend decision
+
+4
+00:00:10,748 --> 00:00:14,211
+SpendGuard 检查预算、endpoint、token、network 和 payTo
+
+5
+00:00:14,331 --> 00:00:17,794
+通过后，x402 返回 402 challenge，客户端构造 ERC-7710 payment payload
+
+6
+00:00:17,914 --> 00:00:21,376
+1Shot / ERC-7710 结算成功后，才返回 AI 风险简报
+
+7
+00:00:21,496 --> 00:00:24,959
+账本记录 service price、relay fee、payload hash 和 tx hash
+
+8
+00:00:25,079 --> 00:00:28,542
+超预算请求会在 paid header 前阻断：没有交易，没有扣款
